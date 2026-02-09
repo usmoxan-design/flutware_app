@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/app_models.dart';
@@ -18,17 +17,37 @@ class ProjectNotifier extends StateNotifier<List<ProjectData>> {
   Future<void> _loadProjects() async {
     _box = await Hive.openBox('projects_box');
     final List<dynamic> rawProjects = _box.get('projects', defaultValue: []);
-    state = rawProjects.map((e) => ProjectData.decode(e as String)).toList();
+    try {
+      state = rawProjects.map((e) => ProjectData.decode(e as String)).toList();
+    } catch (e) {
+      // If error occurs (likely migration issue), clear state
+      state = [];
+      _box.put('projects', []);
+    }
   }
 
-  Future<void> addProject(String name) async {
+  Future<void> addProject({
+    required String appName,
+    required String packageName,
+    required String versionCode,
+    required String versionName,
+    required String colorPrimary,
+    required String colorPrimaryDark,
+    required String colorAccent,
+  }) async {
     final newProject = ProjectData(
-      appName: name,
+      appName: appName,
+      packageName: packageName,
+      versionCode: versionCode,
+      versionName: versionName,
+      colorPrimary: colorPrimary,
+      colorPrimaryDark: colorPrimaryDark,
+      colorAccent: colorAccent,
       pages: [
         PageData(
-          id: 'page_1',
+          id: 'page_home',
           name: 'Home',
-          type: 'StatelessWidget',
+          type: 'StatefulWidget',
           widgets: [],
           logic: {},
         ),
@@ -60,6 +79,7 @@ class ProjectNotifier extends StateNotifier<List<ProjectData>> {
 
 final currentProjectIndexProvider = StateProvider<int?>((ref) => null);
 final currentPageIndexProvider = StateProvider<int?>((ref) => null);
+final selectedWidgetIdProvider = StateProvider<String?>((ref) => null);
 
 final currentProjectProvider = Provider<ProjectData?>((ref) {
   final index = ref.watch(currentProjectIndexProvider);
@@ -71,7 +91,10 @@ final currentProjectProvider = Provider<ProjectData?>((ref) {
 final currentPageProvider = Provider<PageData?>((ref) {
   final project = ref.watch(currentProjectProvider);
   final pageIndex = ref.watch(currentPageIndexProvider);
-  if (project == null || pageIndex == null || pageIndex >= project.pages.length)
+  if (project == null ||
+      pageIndex == null ||
+      pageIndex >= project.pages.length) {
     return null;
+  }
   return project.pages[pageIndex];
 });

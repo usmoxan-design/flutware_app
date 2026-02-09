@@ -34,7 +34,7 @@ class TemplateApp extends StatelessWidget {
       ),
       home: project == null
           ? const Scaffold(body: Center(child: Text('No project.json found')))
-          : JsonRenderer(pageData: project!.pages.first),
+          : JsonRenderer(pageData: project!.pages.first, projectData: project),
     );
   }
 }

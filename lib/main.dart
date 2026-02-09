@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'providers/project_provider.dart';
 import 'screens/project_list_screen.dart';
 
 void main() async {
@@ -9,26 +10,34 @@ void main() async {
   runApp(const ProviderScope(child: FlutwareApp()));
 }
 
-class FlutwareApp extends StatelessWidget {
+class FlutwareApp extends ConsumerWidget {
   const FlutwareApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentProject = ref.watch(currentProjectProvider);
+    final primary = _parseColor(currentProject?.colorPrimary, Colors.blueAccent);
+    final accent = _parseColor(currentProject?.colorAccent, Colors.deepOrange);
+    final useMaterial3 = currentProject?.useMaterial3 ?? true;
+    final appTitle = currentProject?.appName ?? 'Flutterware';
+
     return MaterialApp(
-      title: 'Flutware Builder',
+      title: appTitle,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blueAccent,
-          background: Colors.white,
-        ),
-        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: primary, secondary: accent),
+        useMaterial3: useMaterial3,
         scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+        ),
+        appBarTheme: AppBarTheme(
           backgroundColor: Colors.white,
           elevation: 0,
-          centerTitle: true,
-          titleTextStyle: TextStyle(
+          centerTitle: false,
+          iconTheme: IconThemeData(color: primary),
+          titleTextStyle: const TextStyle(
             color: Colors.black,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -45,5 +54,14 @@ class FlutwareApp extends StatelessWidget {
       ),
       home: const ProjectListScreen(),
     );
+  }
+
+  Color _parseColor(String? value, Color fallback) {
+    if (value == null || value.isEmpty) return fallback;
+    try {
+      return Color(int.parse(value));
+    } catch (_) {
+      return fallback;
+    }
   }
 }
