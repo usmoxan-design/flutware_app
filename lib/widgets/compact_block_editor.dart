@@ -33,7 +33,7 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
   final TextEditingController _searchController = TextEditingController();
   String _search = '';
   bool _paletteSheetOpen = false;
-  bool _showDeleteZone = false;
+  bool _showDragActions = false;
 
   @override
   void initState() {
@@ -86,7 +86,7 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
             ),
           ),
           if (_paletteSheetOpen) _buildPaletteOverlay(),
-          if (_showDeleteZone) _buildDeleteZone(),
+          if (_showDragActions) _buildDragActionBar(),
           Positioned(
             right: 12,
             bottom: 12,
@@ -115,7 +115,7 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
             ),
           ),
           Container(
-            height: MediaQuery.of(context).size.height * 0.76,
+            height: MediaQuery.of(context).size.height * 0.46,
             decoration: BoxDecoration(
               color: const Color(0xFFE8EFF7),
               borderRadius: const BorderRadius.vertical(
@@ -145,54 +145,94 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
     );
   }
 
-  Widget _buildDeleteZone() {
+  Widget _buildDragActionBar() {
     return Positioned(
-      right: 12,
+      left: 10,
+      right: 10,
       top: 8,
-      child: SizedBox(
-        child: DragTarget<_DragPayload>(
-          onWillAcceptWithDetails: (details) => details.data.fromCanvas,
-          onAcceptWithDetails: (details) {
-            if (details.data.fromCanvas) {
-              _removeBlock(details.data.block.id);
-            }
-            setState(() => _showDeleteZone = false);
-          },
-          builder: (context, candidateData, rejectedData) {
-            final active = candidateData.isNotEmpty;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: active ? Colors.red.shade700 : Colors.red.shade500,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.delete_outline, color: Colors.white, size: 18),
-                  SizedBox(width: 6),
-                  Text(
-                    'Delete',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildDragActionTarget(
+              icon: Icons.delete_outline,
+              label: 'Delete',
+              activeColor: Colors.red.shade600,
+              onAccept: (payload) => _removeBlock(payload.block.id),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildDragActionTarget(
+              icon: Icons.copy_outlined,
+              label: 'Duplicate',
+              activeColor: Colors.indigo.shade600,
+              onAccept: (payload) => _duplicateBlock(payload.block.id),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildDragActionTarget(
+              icon: Icons.bookmark_border,
+              label: 'Collection',
+              activeColor: Colors.blueGrey.shade700,
+              onAccept: (_) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Collection keyin qo\'shiladi')),
+                );
+              },
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildDragActionTarget({
+    required IconData icon,
+    required String label,
+    required Color activeColor,
+    required ValueChanged<_DragPayload> onAccept,
+  }) {
+    return DragTarget<_DragPayload>(
+      onWillAcceptWithDetails: (details) => details.data.fromCanvas,
+      onAcceptWithDetails: (details) {
+        if (!details.data.fromCanvas) return;
+        onAccept(details.data);
+        setState(() => _showDragActions = false);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final active = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: 42,
+          decoration: BoxDecoration(
+            color: active ? activeColor : const Color(0xFFE7E9F0),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: active ? Colors.white : Colors.black),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: active ? Colors.white : Colors.black,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -284,45 +324,52 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
   }
 
   Widget _buildEventHeader() {
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFD54F),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE6B800)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.play_arrow, size: 15),
-          const SizedBox(width: 6),
-          Text(
-            widget.eventLabel,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-          ),
-          if (widget.scope == BlockEditorScope.onCreate)
-            const Padding(
-              padding: EdgeInsets.only(left: 8),
-              child: Text(
-                '(initState)',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
-              ),
+    return Row(
+      children: [
+        Text(
+          widget.eventLabel,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        if (widget.scope == BlockEditorScope.onCreate)
+          const Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: Text(
+              '(initState)',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
   Widget _buildHatBlock() {
+    final label = widget.scope == BlockEditorScope.onCreate
+        ? 'When screen created'
+        : 'When ${widget.eventLabel}';
     return Align(
       alignment: Alignment.centerLeft,
-      child: CustomPaint(
-        painter: const _HatBlockPainter(
-          color: Color(0xFF4F5A66),
-          borderColor: Color(0xFF3C454E),
-        ),
-        child: const SizedBox(width: 76, height: 24),
+      child: Stack(
+        children: [
+          CustomPaint(
+            painter: const _HatBlockPainter(
+              color: Color(0xFFC87A2D),
+              borderColor: Color(0xFF9D5D1E),
+            ),
+            child: const SizedBox(width: 236, height: 30),
+          ),
+          Positioned(
+            left: 12,
+            top: 8,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -501,11 +548,11 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
           final active = candidateData.isNotEmpty;
           return LongPressDraggable<_DragPayload>(
             data: _DragPayload(block: block, fromCanvas: true),
-            onDragStarted: () => setState(() => _showDeleteZone = true),
-            onDragEnd: (_) => setState(() => _showDeleteZone = false),
+            onDragStarted: () => setState(() => _showDragActions = true),
+            onDragEnd: (_) => setState(() => _showDragActions = false),
             onDraggableCanceled: (velocity, offset) =>
-                setState(() => _showDeleteZone = false),
-            onDragCompleted: () => setState(() => _showDeleteZone = false),
+                setState(() => _showDragActions = false),
+            onDragCompleted: () => setState(() => _showDragActions = false),
             feedback: Material(
               color: Colors.transparent,
               child: ConstrainedBox(
@@ -553,6 +600,7 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
     BlockModel block, {
     required int depth,
     bool snapHighlight = false,
+    bool showRemove = true,
   }) {
     final definition = BlockRegistry.get(block.type);
     final category = definition?.category ?? block.category;
@@ -597,14 +645,15 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
                         ),
                       const SizedBox(width: 8),
                       ..._buildInputChips(block, definition),
-                      GestureDetector(
-                        onTap: () => _removeBlock(block.id),
-                        child: const Icon(
-                          Icons.close,
-                          size: 14,
-                          color: Colors.white,
+                      if (showRemove)
+                        GestureDetector(
+                          onTap: () => _removeBlock(block.id),
+                          child: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   if (isControl) ...[
@@ -714,11 +763,11 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
 
     return LongPressDraggable<_DragPayload>(
       data: _DragPayload(block: block, fromCanvas: true),
-      onDragStarted: () => setState(() => _showDeleteZone = true),
-      onDragEnd: (_) => setState(() => _showDeleteZone = false),
+      onDragStarted: () => setState(() => _showDragActions = true),
+      onDragEnd: (_) => setState(() => _showDragActions = false),
       onDraggableCanceled: (velocity, offset) =>
-          setState(() => _showDeleteZone = false),
-      onDragCompleted: () => setState(() => _showDeleteZone = false),
+          setState(() => _showDragActions = false),
+      onDragCompleted: () => setState(() => _showDragActions = false),
       feedback: Material(
         color: Colors.transparent,
         child: Opacity(
@@ -950,6 +999,54 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
     _commit(next.blocks);
   }
 
+  void _duplicateBlock(String id) {
+    final source = _findById(_blocks, id);
+    final location = _findLocation(_blocks, id);
+    if (source == null || location == null) return;
+
+    final clone = BlockRegistry.cloneWithFreshIds(source);
+    if (location.parentId == null) {
+      final root = [..._blocks];
+      final nextIndex = (location.index + 1).clamp(0, root.length);
+      root.insert(nextIndex, clone);
+      _commit(root);
+      return;
+    }
+
+    final inserted = _insertIntoSlot(
+      _blocks,
+      parentId: location.parentId!,
+      slotKey: location.slotKey ?? 'then',
+      index: location.index + 1,
+      child: clone,
+    );
+    _commit(inserted.blocks);
+  }
+
+  _BlockLocation? _findLocation(
+    List<BlockModel> source,
+    String id, {
+    String? parentId,
+    String? slotKey,
+  }) {
+    for (var i = 0; i < source.length; i++) {
+      final node = source[i];
+      if (node.id == id) {
+        return _BlockLocation(parentId: parentId, slotKey: slotKey, index: i);
+      }
+      for (final entry in node.slots.entries) {
+        final nested = _findLocation(
+          entry.value,
+          id,
+          parentId: node.id,
+          slotKey: entry.key,
+        );
+        if (nested != null) return nested;
+      }
+    }
+    return null;
+  }
+
   void _commit(List<BlockModel> next) {
     setState(() => _blocks = _clone(next));
     widget.onChanged(_clone(next));
@@ -974,7 +1071,10 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
       },
       feedback: Material(
         color: Colors.transparent,
-        child: SizedBox(width: 250, child: _buildBlockBody(block, depth: 0)),
+        child: SizedBox(
+          width: 250,
+          child: _buildBlockBody(block, depth: 0, showRemove: false),
+        ),
       ),
       childWhenDragging: Opacity(
         opacity: 0.35,
@@ -998,37 +1098,14 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
   }
 
   Widget _buildPaletteItemBody(BlockDefinition def) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: def.category.color,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(def.category.icon, color: Colors.white, size: 14),
-          const SizedBox(width: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 150),
-            child: Text(
-              def.title,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            def.kind == BlockNodeKind.value ? 'value' : 'stmt',
-            style: const TextStyle(fontSize: 9, color: Colors.white),
-          ),
-        ],
+    final block = BlockRegistry.create(def.type);
+    return IgnorePointer(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        child: SizedBox(
+          width: 250,
+          child: _buildBlockBody(block, depth: 0, showRemove: false),
+        ),
       ),
     );
   }
@@ -1431,6 +1508,18 @@ class _DragPayload {
   final bool fromCanvas;
 
   const _DragPayload({required this.block, required this.fromCanvas});
+}
+
+class _BlockLocation {
+  final String? parentId;
+  final String? slotKey;
+  final int index;
+
+  const _BlockLocation({
+    required this.parentId,
+    required this.slotKey,
+    required this.index,
+  });
 }
 
 class _RemoveResult {

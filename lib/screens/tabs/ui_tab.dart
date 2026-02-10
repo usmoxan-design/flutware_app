@@ -34,6 +34,27 @@ class _UiTabState extends ConsumerState<UiTab> {
     _WidgetTemplate(type: 'button', title: 'Button', icon: Icons.smart_button),
     _WidgetTemplate(type: 'fab', title: 'FAB', icon: Icons.add_circle_outline),
   ];
+  static const List<Color> _defaultColors = [
+    Color(0xFF000000),
+    Color(0xFFFFFFFF),
+    Color(0xFFF44336),
+    Color(0xFFE91E63),
+    Color(0xFF9C27B0),
+    Color(0xFF3F51B5),
+    Color(0xFF2196F3),
+    Color(0xFF03A9F4),
+    Color(0xFF009688),
+    Color(0xFF4CAF50),
+    Color(0xFF8BC34A),
+    Color(0xFFFFC107),
+    Color(0xFFFF9800),
+    Color(0xFFFF5722),
+    Color(0xFF795548),
+    Color(0xFF607D8B),
+  ];
+  static const double _phoneWidth = 360;
+  static const double _phoneHeight = 760;
+  static const double _propertySheetHeight = 300;
 
   _PropertySheetTab _sheetTab = _PropertySheetTab.basic;
   bool _isWidgetDragging = false;
@@ -68,7 +89,7 @@ class _UiTabState extends ConsumerState<UiTab> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isCompact = constraints.maxWidth < 900;
-          final paletteWidth = isCompact ? 148.0 : 190.0;
+          final paletteWidth = isCompact ? 138.0 : 178.0;
 
           return Stack(
             children: [
@@ -138,8 +159,8 @@ class _UiTabState extends ConsumerState<UiTab> {
               itemBuilder: (context, index) {
                 final template = templates[index];
                 final tile = _buildTemplateTile(template, page);
-                return LongPressDraggable<_WidgetTemplate>(
-                  data: template,
+                return LongPressDraggable<_CanvasDragPayload>(
+                  data: _CanvasDragPayload.template(template),
                   feedback: Material(
                     color: Colors.transparent,
                     child: SizedBox(width: 160, child: tile),
@@ -160,11 +181,11 @@ class _UiTabState extends ConsumerState<UiTab> {
       borderRadius: BorderRadius.circular(10),
       onTap: () => _addWidgetFromTemplate(template, page),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(5),
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: Row(
@@ -175,7 +196,7 @@ class _UiTabState extends ConsumerState<UiTab> {
               child: Text(
                 template.title,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -192,83 +213,77 @@ class _UiTabState extends ConsumerState<UiTab> {
     WidgetData? selected, {
     required bool isCompact,
   }) {
-    return DragTarget<_WidgetTemplate>(
-      onWillAcceptWithDetails: (_) => true,
-      onAcceptWithDetails: (details) =>
-          _addWidgetFromTemplate(details.data, page),
-      builder: (context, candidateData, rejectedData) {
-        final isActive = candidateData.isNotEmpty;
-        final pageFileName = _pageFileName(page.name);
-        final primaryDark = _parseColor(project.colorPrimaryDark);
-        final appBarWidget = page.widgets
-            .where((item) => item.type == 'appbar')
-            .cast<WidgetData?>()
-            .firstOrNull;
-        final fabWidget = page.widgets
-            .where((item) => item.type == 'fab')
-            .cast<WidgetData?>()
-            .firstOrNull;
-        final bodyWidgets = page.widgets
-            .where(
-              (item) =>
-                  (appBarWidget == null || item.id != appBarWidget.id) &&
-                  (fabWidget == null || item.id != fabWidget.id),
-            )
-            .toList();
+    final pageFileName = _pageFileName(page.name);
+    final primaryDark = _parseColor(project.colorPrimaryDark);
+    final appBarWidget = page.widgets
+        .where((item) => item.type == 'appbar')
+        .cast<WidgetData?>()
+        .firstOrNull;
+    final fabWidget = page.widgets
+        .where((item) => item.type == 'fab')
+        .cast<WidgetData?>()
+        .firstOrNull;
+    final bodyWidgets = _bodyRoots(page.widgets);
 
-        return GestureDetector(
-          onTap: () {
-            if (_selectedWidgetId != null) {
-              setState(() => _selectedWidgetId = null);
-            }
-          },
-          child: Container(
-            color: isActive
-                ? Colors.blue.withValues(alpha: 0.03)
-                : Colors.white,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                12,
-                10,
-                12,
-                selected == null ? 12 : 178,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+    return GestureDetector(
+      onTap: () {
+        if (_selectedWidgetId != null) {
+          setState(() => _selectedWidgetId = null);
+        }
+      },
+      child: Container(
+        color: Colors.grey.shade50,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            12,
+            10,
+            12,
+            selected == null ? 12 : _propertySheetHeight + 18,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        pageFileName,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (selected != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        'Selected: ${selected.id}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.lightBlue.shade700,
-                        ),
-                      ),
+                  Text(
+                    pageFileName,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
                     ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: Center(
-                      child: AspectRatio(
-                        aspectRatio: 9 / 16,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: Center(
+                  child: DragTarget<_CanvasDragPayload>(
+                    onWillAcceptWithDetails: (details) =>
+                        details.data.template != null && bodyWidgets.isEmpty,
+                    onAcceptWithDetails: (details) {
+                      final template = details.data.template;
+                      if (template == null) return;
+                      if (_selectedWidgetId != null) {
+                        setState(() => _selectedWidgetId = null);
+                      }
+                      _addWidgetFromTemplate(template, page);
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      final phoneDropActive = candidateData.isNotEmpty;
+                      return FittedBox(
+                        fit: BoxFit.contain,
                         child: Container(
+                          width: _phoneWidth,
+                          height: _phoneHeight,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(5),
                             color: Colors.white,
+                            border: Border.all(
+                              color: phoneDropActive
+                                  ? Colors.lightBlue
+                                  : Colors.grey.shade300,
+                              width: phoneDropActive ? 1.6 : 1,
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.08),
@@ -277,20 +292,26 @@ class _UiTabState extends ConsumerState<UiTab> {
                               ),
                             ],
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(5),
+                          child: ClipRect(
                             child: Stack(
                               children: [
                                 Column(
                                   children: [
                                     _buildMobileStatusBar(primaryDark),
                                     if (appBarWidget != null)
-                                      _buildCanvasNode(appBarWidget, page),
+                                      _buildCanvasNode(
+                                        project,
+                                        appBarWidget,
+                                        page,
+                                      ),
                                     Expanded(
-                                      child: SingleChildScrollView(
-                                        padding: EdgeInsets.zero,
+                                      child: Container(
+                                        width: double.infinity,
+                                        color: Colors.white,
                                         child: bodyWidgets.isEmpty
-                                            ? _buildDefaultPreview()
+                                            ? _buildDefaultPreview(
+                                                active: phoneDropActive,
+                                              )
                                             : _buildRootWidgetList(
                                                 project,
                                                 page,
@@ -298,7 +319,6 @@ class _UiTabState extends ConsumerState<UiTab> {
                                               ),
                                       ),
                                     ),
-                                    _buildMobileBottomBar(primaryDark),
                                   ],
                                 ),
                                 if (_isWidgetDragging)
@@ -306,9 +326,12 @@ class _UiTabState extends ConsumerState<UiTab> {
                                     left: 8,
                                     right: 8,
                                     top: 6,
-                                    child: DragTarget<_WidgetDragPayload>(
-                                      onWillAcceptWithDetails: (_) => true,
+                                    child: DragTarget<_CanvasDragPayload>(
+                                      onWillAcceptWithDetails: (details) =>
+                                          details.data.widgetId != null,
                                       onAcceptWithDetails: (details) {
+                                        final widgetId = details.data.widgetId;
+                                        if (widgetId == null) return;
                                         _removeWidgetById(
                                           project,
                                           ref.read(
@@ -316,7 +339,7 @@ class _UiTabState extends ConsumerState<UiTab> {
                                           )!,
                                           ref.read(currentPageIndexProvider)!,
                                           page,
-                                          details.data.widgetId,
+                                          widgetId,
                                         );
                                         setState(() {
                                           _isWidgetDragging = false;
@@ -351,45 +374,49 @@ class _UiTabState extends ConsumerState<UiTab> {
                                 if (fabWidget != null)
                                   Positioned(
                                     right: 10,
-                                    bottom: 42,
-                                    child: _buildCanvasNode(fabWidget, page),
+                                    bottom: 12,
+                                    child: _buildCanvasNode(
+                                      project,
+                                      fabWidget,
+                                      page,
+                                    ),
                                   ),
                               ],
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isCompact
-                        ? 'Tap widget -> Property'
-                        : 'Tap widget to edit properties. Select Row/Column then add to nest.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                isCompact
+                    ? 'Tap widget -> Property'
+                    : 'Widgetni telefon preview ichiga drag qiling.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildDefaultPreview() {
+  Widget _buildDefaultPreview({bool active = false}) {
     return Container(
-      height: 86,
+      width: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(2),
-        color: Colors.grey.shade100,
-        border: Border.all(color: Colors.grey.shade200),
+        color: active
+            ? Colors.lightBlue.withValues(alpha: 0.08)
+            : Colors.grey.shade100,
       ),
-      child: const Center(
+      child: Center(
         child: Text(
-          'Bo\'sh preview',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          active ? 'Widgetni shu joyga tashlang' : 'Body bo\'sh',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         ),
       ),
     );
@@ -414,20 +441,32 @@ class _UiTabState extends ConsumerState<UiTab> {
     );
   }
 
-  Widget _buildMobileBottomBar(Color color) {
-    return Container(
-      height: 30,
-      color: color.withValues(alpha: 0.15),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          Icon(Icons.crop_square, size: 14),
-          Icon(Icons.circle_outlined, size: 14),
-          Icon(Icons.arrow_back, size: 14),
-        ],
+  Widget _buildMiniDropIndicator(bool active) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 90),
+      width: active ? 92 : 60,
+      height: 3,
+      decoration: BoxDecoration(
+        color: active ? Colors.lightBlue : Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }
+
+  // Widget _buildMobileBottomBar(Color color) {
+  //   return Container(
+  //     height: 30,
+  //     color: color.withValues(alpha: 0.15),
+  //     child: const Row(
+  //       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  //       children: [
+  //         Icon(Icons.crop_square, size: 14),
+  //         Icon(Icons.circle_outlined, size: 14),
+  //         Icon(Icons.arrow_back, size: 14),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildRootWidgetList(
     ProjectData project,
@@ -438,33 +477,26 @@ class _UiTabState extends ConsumerState<UiTab> {
       _buildRootDropTarget(project, page, roots, insertIndex: 0),
     ];
 
-    for (var i = 0; i < roots.length; i++) {
-      final node = roots[i];
+    if (roots.length > 1) {
       children.add(
-        LongPressDraggable<_WidgetDragPayload>(
-          data: _WidgetDragPayload(widgetId: node.id),
-          onDragStarted: () => setState(() => _isWidgetDragging = true),
-          onDragEnd: (_) => setState(() => _isWidgetDragging = false),
-          onDraggableCanceled: (_, _) =>
-              setState(() => _isWidgetDragging = false),
-          onDragCompleted: () => setState(() => _isWidgetDragging = false),
-          feedback: Material(
-            color: Colors.transparent,
-            child: Opacity(
-              opacity: 0.9,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220),
-                child: _buildCanvasNode(node, page),
-              ),
-            ),
+        Container(
+          margin: const EdgeInsets.fromLTRB(0, 2, 0, 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade100,
+            border: Border.all(color: Colors.amber.shade300),
           ),
-          childWhenDragging: Opacity(
-            opacity: 0.35,
-            child: _buildCanvasNode(node, page),
+          child: const Text(
+            'Body root 1 ta element qabul qiladi',
+            style: TextStyle(fontSize: 10),
           ),
-          child: _buildCanvasNode(node, page),
         ),
       );
+    }
+
+    for (var i = 0; i < roots.length; i++) {
+      final node = roots[i];
+      children.add(_buildCanvasNode(project, node, page));
       children.add(
         _buildRootDropTarget(project, page, roots, insertIndex: i + 1),
       );
@@ -482,16 +514,42 @@ class _UiTabState extends ConsumerState<UiTab> {
     List<WidgetData> roots, {
     required int insertIndex,
   }) {
-    return DragTarget<_WidgetDragPayload>(
-      onWillAcceptWithDetails: (_) => true,
+    return DragTarget<_CanvasDragPayload>(
+      onWillAcceptWithDetails: (details) {
+        final template = details.data.template;
+        if (template != null) {
+          return roots.isEmpty;
+        }
+        final widgetId = details.data.widgetId;
+        if (widgetId == null) return false;
+        if (roots.any((item) => item.id == widgetId)) {
+          return true;
+        }
+        return roots.isEmpty;
+      },
       onAcceptWithDetails: (details) {
-        _moveRootWidget(
-          project,
-          page,
-          roots,
-          details.data.widgetId,
-          insertIndex,
-        );
+        final template = details.data.template;
+        if (template != null) {
+          if (roots.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Body root faqat bitta element')),
+            );
+            return;
+          }
+          if (_selectedWidgetId != null) {
+            setState(() => _selectedWidgetId = null);
+          }
+          _addWidgetFromTemplate(template, page);
+          return;
+        }
+
+        final widgetId = details.data.widgetId;
+        if (widgetId == null) return;
+        if (roots.any((item) => item.id == widgetId)) {
+          _moveRootWidget(project, page, roots, widgetId, insertIndex);
+        } else {
+          _moveWidgetToRoot(project, page, widgetId, insertIndex);
+        }
         setState(() => _isWidgetDragging = false);
       },
       builder: (context, candidate, rejected) {
@@ -522,6 +580,8 @@ class _UiTabState extends ConsumerState<UiTab> {
     String widgetId,
     int insertIndex,
   ) {
+    if (roots.length <= 1) return;
+
     final movingIndex = roots.indexWhere((item) => item.id == widgetId);
     if (movingIndex < 0) return;
     final list = [...roots];
@@ -556,7 +616,164 @@ class _UiTabState extends ConsumerState<UiTab> {
     _updatePage(ref, project, pIdx, pgIdx, page.copyWith(widgets: rebuilt));
   }
 
-  Widget _buildCanvasNode(WidgetData widget, PageData page, {int depth = 0}) {
+  void _moveWidgetToRoot(
+    ProjectData project,
+    PageData page,
+    String widgetId,
+    int insertIndex,
+  ) {
+    final moving = _findWidgetById(page.widgets, widgetId);
+    if (moving == null) return;
+    if (moving.type == 'appbar' || moving.type == 'fab') return;
+
+    final withoutMoving = _removeById(page.widgets, widgetId);
+    final appBarWidget = withoutMoving
+        .where((item) => item.type == 'appbar')
+        .cast<WidgetData?>()
+        .firstOrNull;
+    final fabWidget = withoutMoving
+        .where((item) => item.type == 'fab')
+        .cast<WidgetData?>()
+        .firstOrNull;
+    final bodyRoots = withoutMoving
+        .where(
+          (item) =>
+              (appBarWidget == null || item.id != appBarWidget.id) &&
+              (fabWidget == null || item.id != fabWidget.id),
+        )
+        .toList();
+
+    if (bodyRoots.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Body root faqat bitta element')),
+      );
+      return;
+    }
+
+    final target = insertIndex.clamp(0, bodyRoots.length);
+    bodyRoots.insert(target, moving);
+
+    final rebuilt = <WidgetData>[
+      if (appBarWidget != null) appBarWidget,
+      ...bodyRoots,
+      if (fabWidget != null) fabWidget,
+    ];
+
+    final pIdx = ref.read(currentProjectIndexProvider);
+    final pgIdx = ref.read(currentPageIndexProvider);
+    if (pIdx == null || pgIdx == null) return;
+
+    _updatePage(ref, project, pIdx, pgIdx, page.copyWith(widgets: rebuilt));
+  }
+
+  void _moveWidgetToContainer(
+    ProjectData project,
+    PageData page,
+    String widgetId,
+    String targetParentId,
+  ) {
+    if (widgetId == targetParentId) return;
+
+    final moving = _findWidgetById(page.widgets, widgetId);
+    final targetParent = _findWidgetById(page.widgets, targetParentId);
+    if (moving == null || targetParent == null) return;
+
+    if (moving.type == 'appbar' || moving.type == 'fab') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('AppBar/FAB faqat rootda bo\'ladi')),
+      );
+      return;
+    }
+
+    if (!_supportsChildren(targetParent.type)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bu layout child qabul qilmaydi')),
+      );
+      return;
+    }
+
+    if (_isDescendantOf(
+      page.widgets,
+      ancestorId: widgetId,
+      targetId: targetParentId,
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Widget o\'z child ichiga ko\'chirilmaydi'),
+        ),
+      );
+      return;
+    }
+
+    if (moving.type == 'expanded' &&
+        targetParent.type != 'row' &&
+        targetParent.type != 'column') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Expanded faqat Row/Column ichida bo\'ladi'),
+        ),
+      );
+      return;
+    }
+
+    final withoutMoving = _removeById(page.widgets, widgetId);
+    final updatedParent = _findWidgetById(withoutMoving, targetParentId);
+    if (updatedParent == null) return;
+
+    if (_acceptsSingleChild(updatedParent.type) &&
+        _childrenOf(updatedParent).isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bu layout faqat bitta child qabul qiladi'),
+        ),
+      );
+      return;
+    }
+
+    if (moving.type == 'expanded' &&
+        _isInSingleScrollAncestor(withoutMoving, updatedParent.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ogohlantirish: SingleChildScrollView ichida Expanded xato beradi',
+          ),
+        ),
+      );
+    }
+
+    final widgets = _insertChild(withoutMoving, targetParentId, moving);
+    final pIdx = ref.read(currentProjectIndexProvider);
+    final pgIdx = ref.read(currentPageIndexProvider);
+    if (pIdx == null || pgIdx == null) return;
+
+    _updatePage(ref, project, pIdx, pgIdx, page.copyWith(widgets: widgets));
+  }
+
+  bool _isDescendantOf(
+    List<WidgetData> widgets, {
+    required String ancestorId,
+    required String targetId,
+  }) {
+    final ancestor = _findWidgetById(widgets, ancestorId);
+    if (ancestor == null) return false;
+
+    bool walk(List<WidgetData> nodes) {
+      for (final node in nodes) {
+        if (node.id == targetId) return true;
+        if (walk(_childrenOf(node))) return true;
+      }
+      return false;
+    }
+
+    return walk(_childrenOf(ancestor));
+  }
+
+  Widget _buildCanvasNode(
+    ProjectData project,
+    WidgetData widget,
+    PageData page, {
+    int depth = 0,
+  }) {
     final isSelected = widget.id == _selectedWidgetId;
     final children = _childrenOf(widget);
 
@@ -594,10 +811,14 @@ class _UiTabState extends ConsumerState<UiTab> {
         break;
       case 'button':
         final enabled = widget.properties['enabled'] != false;
+        final buttonColor = _parseColor(
+          widget.properties['backgroundColor']?.toString(),
+          fallback: Colors.blue.shade600,
+        );
         body = Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: enabled ? Colors.blue.shade600 : Colors.grey.shade400,
+            color: enabled ? buttonColor : buttonColor.withValues(alpha: 0.45),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
@@ -626,16 +847,27 @@ class _UiTabState extends ConsumerState<UiTab> {
         final verticalDirection = _parseVerticalDirection(
           widget.properties['verticalDirection']?.toString(),
         );
+        final hasExpandedChild = children.any(
+          (childWidget) => childWidget.type == 'expanded',
+        );
 
-        body = DragTarget<_WidgetTemplate>(
+        body = DragTarget<_CanvasDragPayload>(
           onWillAcceptWithDetails: (_) => true,
-          onAcceptWithDetails: (details) =>
-              _addWidgetFromTemplate(details.data, page, parentId: widget.id),
+          onAcceptWithDetails: (details) {
+            final template = details.data.template;
+            if (template != null) {
+              _addWidgetFromTemplate(template, page, parentId: widget.id);
+              return;
+            }
+            final widgetId = details.data.widgetId;
+            if (widgetId != null) {
+              _moveWidgetToContainer(project, page, widgetId, widget.id);
+            }
+          },
           builder: (context, candidateData, rejectedData) {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
                 color: Colors.grey.shade50,
                 border: Border.all(
                   color: candidateData.isNotEmpty
@@ -644,32 +876,66 @@ class _UiTabState extends ConsumerState<UiTab> {
                 ),
               ),
               child: children.isEmpty
-                  ? const Text(
-                      'Row',
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ? SizedBox(
+                      height: 32,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildMiniDropIndicator(
+                          candidateData.isNotEmpty,
+                        ),
+                      ),
                     )
                   : SizedBox(
-                      width: double.infinity,
-                      child: Row(
-                        mainAxisSize: mainSize,
-                        mainAxisAlignment: mainAxis,
-                        crossAxisAlignment: crossAxis,
-                        textDirection: textDirection,
-                        verticalDirection: verticalDirection,
-                        children: [
-                          for (final child in children)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 3,
+                      height: 128,
+                      child: hasExpandedChild
+                          ? SizedBox(
+                              width: double.infinity,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: mainAxis,
+                                crossAxisAlignment: crossAxis,
+                                textDirection: textDirection,
+                                verticalDirection: verticalDirection,
+                                children: [
+                                  for (final child in children)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
+                                      child: _buildCanvasNode(
+                                        project,
+                                        child,
+                                        page,
+                                        depth: depth + 1,
+                                      ),
+                                    ),
+                                ],
                               ),
-                              child: _buildCanvasNode(
-                                child,
-                                page,
-                                depth: depth + 1,
+                            )
+                          : Align(
+                              alignment: Alignment.topLeft,
+                              child: Row(
+                                mainAxisSize: mainSize,
+                                mainAxisAlignment: mainAxis,
+                                crossAxisAlignment: crossAxis,
+                                textDirection: textDirection,
+                                verticalDirection: verticalDirection,
+                                children: [
+                                  for (final child in children)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
+                                      child: _buildCanvasNode(
+                                        project,
+                                        child,
+                                        page,
+                                        depth: depth + 1,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                        ],
-                      ),
                     ),
             );
           },
@@ -691,16 +957,27 @@ class _UiTabState extends ConsumerState<UiTab> {
         final verticalDirection = _parseVerticalDirection(
           widget.properties['verticalDirection']?.toString(),
         );
+        final hasExpandedChild = children.any(
+          (childWidget) => childWidget.type == 'expanded',
+        );
 
-        body = DragTarget<_WidgetTemplate>(
+        body = DragTarget<_CanvasDragPayload>(
           onWillAcceptWithDetails: (_) => true,
-          onAcceptWithDetails: (details) =>
-              _addWidgetFromTemplate(details.data, page, parentId: widget.id),
+          onAcceptWithDetails: (details) {
+            final template = details.data.template;
+            if (template != null) {
+              _addWidgetFromTemplate(template, page, parentId: widget.id);
+              return;
+            }
+            final widgetId = details.data.widgetId;
+            if (widgetId != null) {
+              _moveWidgetToContainer(project, page, widgetId, widget.id);
+            }
+          },
           builder: (context, candidateData, rejectedData) {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
                 color: Colors.grey.shade50,
                 border: Border.all(
                   color: candidateData.isNotEmpty
@@ -709,30 +986,62 @@ class _UiTabState extends ConsumerState<UiTab> {
                 ),
               ),
               child: children.isEmpty
-                  ? const Text(
-                      'Column',
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ? SizedBox(
+                      height: 56,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: _buildMiniDropIndicator(
+                          candidateData.isNotEmpty,
+                        ),
+                      ),
                     )
                   : SizedBox(
-                      height: 130,
-                      child: Column(
-                        mainAxisSize: mainSize,
-                        mainAxisAlignment: mainAxis,
-                        crossAxisAlignment: crossAxis,
-                        textDirection: textDirection,
-                        verticalDirection: verticalDirection,
-                        children: [
-                          for (final child in children)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: _buildCanvasNode(
-                                child,
-                                page,
-                                depth: depth + 1,
+                      width: double.infinity,
+                      child: hasExpandedChild
+                          ? SizedBox(
+                              height: 128,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: mainAxis,
+                                crossAxisAlignment: crossAxis,
+                                textDirection: textDirection,
+                                verticalDirection: verticalDirection,
+                                children: [
+                                  for (final child in children)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: _buildCanvasNode(
+                                        project,
+                                        child,
+                                        page,
+                                        depth: depth + 1,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            )
+                          : Align(
+                              alignment: Alignment.topLeft,
+                              child: Column(
+                                mainAxisSize: mainSize,
+                                mainAxisAlignment: mainAxis,
+                                crossAxisAlignment: crossAxis,
+                                textDirection: textDirection,
+                                verticalDirection: verticalDirection,
+                                children: [
+                                  for (final child in children)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: _buildCanvasNode(
+                                        project,
+                                        child,
+                                        page,
+                                        depth: depth + 1,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                        ],
-                      ),
                     ),
             );
           },
@@ -742,40 +1051,60 @@ class _UiTabState extends ConsumerState<UiTab> {
         final direction = _parseAxis(
           widget.properties['scrollDirection']?.toString(),
         );
-        body = DragTarget<_WidgetTemplate>(
+        final reverse = widget.properties['reverse'] == true;
+        final padding =
+            (widget.properties['padding'] as num?)?.toDouble() ?? 8.0;
+        body = DragTarget<_CanvasDragPayload>(
           onWillAcceptWithDetails: (_) => true,
-          onAcceptWithDetails: (details) =>
-              _addWidgetFromTemplate(details.data, page, parentId: widget.id),
+          onAcceptWithDetails: (details) {
+            final template = details.data.template;
+            if (template != null) {
+              _addWidgetFromTemplate(template, page, parentId: widget.id);
+              return;
+            }
+            final widgetId = details.data.widgetId;
+            if (widgetId != null) {
+              _moveWidgetToContainer(project, page, widgetId, widget.id);
+            }
+          },
           builder: (context, candidateData, rejectedData) {
             return Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(6),
+              height: direction == Axis.horizontal ? 92 : null,
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: candidateData.isNotEmpty
                       ? Colors.indigo
                       : Colors.grey.shade300,
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'SingleChildScrollView (${direction.name})',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
-                  ),
-                  const SizedBox(height: 4),
-                  if (children.isEmpty)
-                    const Text(
-                      'Drop child',
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
-                    )
-                  else
-                    _buildCanvasNode(children.first, page, depth: depth + 1),
-                ],
+              child: ClipRect(
+                child: SingleChildScrollView(
+                  scrollDirection: direction,
+                  reverse: reverse,
+                  padding: EdgeInsets.all(padding.clamp(0.0, 32.0)),
+                  child: children.isEmpty
+                      ? SizedBox(
+                          width: direction == Axis.horizontal
+                              ? 180
+                              : double.infinity,
+                          height: direction == Axis.vertical ? 120 : 56,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _buildMiniDropIndicator(
+                              candidateData.isNotEmpty,
+                            ),
+                          ),
+                        )
+                      : _buildCanvasNode(
+                          project,
+                          children.first,
+                          page,
+                          depth: depth + 1,
+                        ),
+                ),
               ),
             );
           },
@@ -783,16 +1112,24 @@ class _UiTabState extends ConsumerState<UiTab> {
         break;
       case 'padding':
         final rawPadding =
-            (widget.properties['padding'] as num?)?.toDouble() ?? 8.0;
-        body = DragTarget<_WidgetTemplate>(
+            (widget.properties['padding'] as num?)?.toDouble() ?? 0.0;
+        body = DragTarget<_CanvasDragPayload>(
           onWillAcceptWithDetails: (_) => true,
-          onAcceptWithDetails: (details) =>
-              _addWidgetFromTemplate(details.data, page, parentId: widget.id),
+          onAcceptWithDetails: (details) {
+            final template = details.data.template;
+            if (template != null) {
+              _addWidgetFromTemplate(template, page, parentId: widget.id);
+              return;
+            }
+            final widgetId = details.data.widgetId;
+            if (widgetId != null) {
+              _moveWidgetToContainer(project, page, widgetId, widget.id);
+            }
+          },
           builder: (context, candidateData, rejectedData) {
             return Container(
               padding: EdgeInsets.all(rawPadding.clamp(0.0, 32.0)),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: candidateData.isNotEmpty
                       ? Colors.indigo
@@ -800,27 +1137,44 @@ class _UiTabState extends ConsumerState<UiTab> {
                 ),
               ),
               child: children.isEmpty
-                  ? const Text(
-                      'Padding',
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ? SizedBox(
+                      height: 32,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildMiniDropIndicator(
+                          candidateData.isNotEmpty,
+                        ),
+                      ),
                     )
-                  : _buildCanvasNode(children.first, page, depth: depth + 1),
+                  : _buildCanvasNode(
+                      project,
+                      children.first,
+                      page,
+                      depth: depth + 1,
+                    ),
             );
           },
         );
         break;
       case 'expanded':
-        final flex = (widget.properties['flex'] as num?)?.toInt() ?? 1;
-        body = DragTarget<_WidgetTemplate>(
+        body = DragTarget<_CanvasDragPayload>(
           onWillAcceptWithDetails: (_) => true,
-          onAcceptWithDetails: (details) =>
-              _addWidgetFromTemplate(details.data, page, parentId: widget.id),
+          onAcceptWithDetails: (details) {
+            final template = details.data.template;
+            if (template != null) {
+              _addWidgetFromTemplate(template, page, parentId: widget.id);
+              return;
+            }
+            final widgetId = details.data.widgetId;
+            if (widgetId != null) {
+              _moveWidgetToContainer(project, page, widgetId, widget.id);
+            }
+          },
           builder: (context, candidateData, rejectedData) {
             return Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.blueGrey.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: candidateData.isNotEmpty
                       ? Colors.indigo
@@ -831,13 +1185,25 @@ class _UiTabState extends ConsumerState<UiTab> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Expanded(flex: $flex)',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
-                  ),
+                  const SizedBox(height: 2),
                   if (children.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    _buildCanvasNode(children.first, page, depth: depth + 1),
+                    _buildCanvasNode(
+                      project,
+                      children.first,
+                      page,
+                      depth: depth + 1,
+                    ),
+                  ] else ...[
+                    SizedBox(
+                      height: 22,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildMiniDropIndicator(
+                          candidateData.isNotEmpty,
+                        ),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -861,7 +1227,7 @@ class _UiTabState extends ConsumerState<UiTab> {
         body = Text('Unknown: ${widget.type}');
     }
 
-    return GestureDetector(
+    final selectable = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
         setState(() {
@@ -873,17 +1239,56 @@ class _UiTabState extends ConsumerState<UiTab> {
         alignment: Alignment.centerLeft,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.zero,
-            border: Border.all(
-              color: isSelected ? Colors.lightBlue : Colors.transparent,
-              width: 1.5,
-            ),
-            color: isSelected
-                ? Colors.lightBlue.withValues(alpha: 0.08)
-                : Colors.transparent,
-          ),
+          decoration: isSelected
+              ? BoxDecoration(
+                  border: Border.all(color: Colors.lightBlue, width: 1.5),
+                  color: Colors.lightBlue.withValues(alpha: 0.08),
+                )
+              : null,
           child: body,
+        ),
+      ),
+    );
+
+    if (widget.type == 'appbar' || widget.type == 'fab') {
+      return selectable;
+    }
+
+    return LongPressDraggable<_CanvasDragPayload>(
+      data: _CanvasDragPayload.widget(widget.id),
+      onDragStarted: () => setState(() => _isWidgetDragging = true),
+      onDragEnd: (_) => setState(() => _isWidgetDragging = false),
+      onDraggableCanceled: (_, _) => setState(() => _isWidgetDragging = false),
+      onDragCompleted: () => setState(() => _isWidgetDragging = false),
+      feedback: Material(
+        color: Colors.transparent,
+        child: _buildDragFeedback(widget),
+      ),
+      childWhenDragging: Opacity(opacity: 0.35, child: selectable),
+      child: selectable,
+    );
+  }
+
+  Widget _buildDragFeedback(WidgetData widget) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.blueGrey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Text(
+          '${widget.id} (${widget.type})',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
@@ -898,38 +1303,25 @@ class _UiTabState extends ConsumerState<UiTab> {
   ) {
     if (selected == null) return const SizedBox.shrink();
 
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.62,
-        minChildSize: 0.48,
-        maxChildSize: 0.94,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8EFF7),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(18),
-              ),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade500,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Material(
+        color: Colors.transparent,
+        elevation: 16,
+        child: Container(
+          height: _propertySheetHeight,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8EFF7),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 8, 0),
+                child: Row(
                   children: [
                     Icon(
                       Icons.widgets,
@@ -941,7 +1333,7 @@ class _UiTabState extends ConsumerState<UiTab> {
                       child: Text(
                         selected.id,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -967,9 +1359,10 @@ class _UiTabState extends ConsumerState<UiTab> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                child: Row(
                   children: [
                     ChoiceChip(
                       label: const Text('Basic'),
@@ -978,6 +1371,7 @@ class _UiTabState extends ConsumerState<UiTab> {
                         setState(() => _sheetTab = _PropertySheetTab.basic);
                       },
                     ),
+                    const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text('Event'),
                       selected: _sheetTab == _PropertySheetTab.event,
@@ -987,27 +1381,31 @@ class _UiTabState extends ConsumerState<UiTab> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                if (_sheetTab == _PropertySheetTab.basic)
-                  _buildBasicProperties(
-                    project,
-                    projectIndex,
-                    pageIndex,
-                    page,
-                    selected,
-                  )
-                else
-                  _buildEventProperties(
-                    project,
-                    projectIndex,
-                    pageIndex,
-                    page,
-                    selected,
-                  ),
-              ],
-            ),
-          );
-        },
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                  child: _sheetTab == _PropertySheetTab.basic
+                      ? _buildBasicProperties(
+                          project,
+                          projectIndex,
+                          pageIndex,
+                          page,
+                          selected,
+                        )
+                      : _buildEventProperties(
+                          project,
+                          projectIndex,
+                          pageIndex,
+                          page,
+                          selected,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1021,6 +1419,438 @@ class _UiTabState extends ConsumerState<UiTab> {
   ) {
     final children = _childrenOf(selected);
     final warning = _usageWarning(page.widgets, selected.id);
+    final cards = <Widget>[];
+
+    void addAction({
+      required String label,
+      required String value,
+      required IconData icon,
+      required Future<void> Function() onTap,
+    }) {
+      cards.add(
+        _buildPropertyAction(
+          label: label,
+          value: value,
+          icon: icon,
+          onTap: onTap,
+        ),
+      );
+    }
+
+    if (selected.type == 'text' || selected.type == 'button') {
+      addAction(
+        label: 'text',
+        value: selected.text,
+        icon: Icons.text_fields,
+        onTap: () async {
+          final value = await _showTextInputDialog(
+            title: 'text',
+            initial: selected.text,
+          );
+          if (value == null) return;
+          final key = selected.type == 'text' ? 'text' : 'label';
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            key,
+            value,
+          );
+        },
+      );
+    }
+
+    if (selected.type == 'appbar') {
+      addAction(
+        label: 'title',
+        value: selected.properties['title']?.toString() ?? page.name,
+        icon: Icons.title,
+        onTap: () async {
+          final value = await _showTextInputDialog(
+            title: 'AppBar title',
+            initial: selected.properties['title']?.toString() ?? page.name,
+          );
+          if (value == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'title',
+            value,
+          );
+        },
+      );
+      addAction(
+        label: 'backgroundColor',
+        value:
+            selected.properties['backgroundColor']?.toString() ?? '0xFF2E7D32',
+        icon: Icons.palette_outlined,
+        onTap: () async {
+          final picked = await _pickColor(
+            _parseColor(
+              selected.properties['backgroundColor']?.toString(),
+              fallback: const Color(0xFF2E7D32),
+            ),
+          );
+          if (picked == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'backgroundColor',
+            _colorToHex(picked),
+          );
+        },
+      );
+    }
+
+    if (selected.type == 'button') {
+      addAction(
+        label: 'enabled',
+        value: (selected.properties['enabled'] != false).toString(),
+        icon: Icons.toggle_on_outlined,
+        onTap: () async {
+          final next = await _showBoolPickerDialog(
+            title: 'enabled',
+            current: selected.properties['enabled'] != false,
+          );
+          if (next == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'enabled',
+            next,
+          );
+        },
+      );
+      addAction(
+        label: 'backgroundColor',
+        value:
+            selected.properties['backgroundColor']?.toString() ?? '0xFF1976D2',
+        icon: Icons.palette_outlined,
+        onTap: () async {
+          final picked = await _pickColor(
+            _parseColor(
+              selected.properties['backgroundColor']?.toString(),
+              fallback: Colors.blue.shade600,
+            ),
+          );
+          if (picked == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'backgroundColor',
+            _colorToHex(picked),
+          );
+        },
+      );
+    }
+
+    if (selected.type == 'single_scroll') {
+      addAction(
+        label: 'scrollDirection',
+        value: selected.properties['scrollDirection']?.toString() ?? 'vertical',
+        icon: Icons.swap_vert,
+        onTap: () async {
+          final value = await _showEnumPickerDialog(
+            title: 'scrollDirection',
+            options: const ['vertical', 'horizontal'],
+            current:
+                selected.properties['scrollDirection']?.toString() ??
+                'vertical',
+          );
+          if (value == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'scrollDirection',
+            value,
+          );
+        },
+      );
+      addAction(
+        label: 'physics',
+        value: selected.properties['physics']?.toString() ?? 'clamping',
+        icon: Icons.speed_outlined,
+        onTap: () async {
+          final value = await _showEnumPickerDialog(
+            title: 'physics',
+            options: const ['clamping', 'bouncing', 'never'],
+            current: selected.properties['physics']?.toString() ?? 'clamping',
+          );
+          if (value == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'physics',
+            value,
+          );
+        },
+      );
+      addAction(
+        label: 'reverse',
+        value: (selected.properties['reverse'] == true).toString(),
+        icon: Icons.sync_alt,
+        onTap: () async {
+          final next = await _showBoolPickerDialog(
+            title: 'reverse',
+            current: selected.properties['reverse'] == true,
+          );
+          if (next == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'reverse',
+            next,
+          );
+        },
+      );
+      addAction(
+        label: 'padding',
+        value: ((selected.properties['padding'] as num?)?.toDouble() ?? 0)
+            .toStringAsFixed(1),
+        icon: Icons.space_bar_outlined,
+        onTap: () async {
+          final value = await _showTextInputDialog(
+            title: 'padding',
+            initial: ((selected.properties['padding'] as num?)?.toDouble() ?? 0)
+                .toString(),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
+            ],
+          );
+          if (value == null) return;
+          final parsed = double.tryParse(value.trim());
+          if (parsed == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'padding',
+            parsed,
+          );
+        },
+      );
+    }
+
+    if (selected.type == 'padding') {
+      addAction(
+        label: 'padding',
+        value: ((selected.properties['padding'] as num?)?.toDouble() ?? 0)
+            .toStringAsFixed(1),
+        icon: Icons.space_bar_outlined,
+        onTap: () async {
+          final value = await _showTextInputDialog(
+            title: 'padding',
+            initial: ((selected.properties['padding'] as num?)?.toDouble() ?? 0)
+                .toString(),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
+            ],
+          );
+          if (value == null) return;
+          final parsed = double.tryParse(value.trim());
+          if (parsed == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'padding',
+            parsed,
+          );
+        },
+      );
+    }
+
+    if (selected.type == 'expanded') {
+      addAction(
+        label: 'flex',
+        value: ((selected.properties['flex'] as num?)?.toInt() ?? 1).toString(),
+        icon: Icons.open_in_full,
+        onTap: () async {
+          final value = await _showTextInputDialog(
+            title: 'flex',
+            initial: ((selected.properties['flex'] as num?)?.toInt() ?? 1)
+                .toString(),
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          );
+          if (value == null) return;
+          final parsed = int.tryParse(value.trim());
+          if (parsed == null || parsed < 1) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'flex',
+            parsed,
+          );
+        },
+      );
+    }
+
+    if (selected.type == 'row' || selected.type == 'column') {
+      addAction(
+        label: 'mainAxisAlignment',
+        value: selected.properties['mainAxisAlignment']?.toString() ?? 'start',
+        icon: Icons.align_horizontal_left,
+        onTap: () async {
+          final value = await _showEnumPickerDialog(
+            title: 'mainAxisAlignment',
+            options: const [
+              'start',
+              'center',
+              'end',
+              'spaceBetween',
+              'spaceAround',
+              'spaceEvenly',
+            ],
+            current:
+                selected.properties['mainAxisAlignment']?.toString() ?? 'start',
+          );
+          if (value == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'mainAxisAlignment',
+            value,
+          );
+        },
+      );
+      addAction(
+        label: 'crossAxisAlignment',
+        value:
+            selected.properties['crossAxisAlignment']?.toString() ??
+            (selected.type == 'column' ? 'stretch' : 'center'),
+        icon: Icons.align_vertical_center,
+        onTap: () async {
+          final value = await _showEnumPickerDialog(
+            title: 'crossAxisAlignment',
+            options: const ['start', 'center', 'end', 'stretch'],
+            current:
+                selected.properties['crossAxisAlignment']?.toString() ??
+                (selected.type == 'column' ? 'stretch' : 'center'),
+          );
+          if (value == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'crossAxisAlignment',
+            value,
+          );
+        },
+      );
+      addAction(
+        label: 'mainAxisSize',
+        value: selected.properties['mainAxisSize']?.toString() ?? 'min',
+        icon: Icons.fit_screen_outlined,
+        onTap: () async {
+          final value = await _showEnumPickerDialog(
+            title: 'mainAxisSize',
+            options: const ['min', 'max'],
+            current: selected.properties['mainAxisSize']?.toString() ?? 'min',
+          );
+          if (value == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'mainAxisSize',
+            value,
+          );
+        },
+      );
+      addAction(
+        label: 'textDirection',
+        value: selected.properties['textDirection']?.toString() ?? 'ltr',
+        icon: Icons.format_textdirection_l_to_r,
+        onTap: () async {
+          final value = await _showEnumPickerDialog(
+            title: 'textDirection',
+            options: const ['ltr', 'rtl'],
+            current: selected.properties['textDirection']?.toString() ?? 'ltr',
+          );
+          if (value == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'textDirection',
+            value,
+          );
+        },
+      );
+      addAction(
+        label: 'verticalDirection',
+        value: selected.properties['verticalDirection']?.toString() ?? 'down',
+        icon: Icons.swap_vert_circle_outlined,
+        onTap: () async {
+          final value = await _showEnumPickerDialog(
+            title: 'verticalDirection',
+            options: const ['down', 'up'],
+            current:
+                selected.properties['verticalDirection']?.toString() ?? 'down',
+          );
+          if (value == null) return;
+          _updateWidgetProperty(
+            project,
+            projectIndex,
+            pageIndex,
+            page,
+            selected.id,
+            'verticalDirection',
+            value,
+          );
+        },
+      );
+      cards.add(
+        _buildPropertyAction(
+          label: 'children',
+          value: children.length.toString(),
+          icon: Icons.account_tree_outlined,
+          onTap: null,
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1038,317 +1868,160 @@ class _UiTabState extends ConsumerState<UiTab> {
           ),
           const SizedBox(height: 10),
         ],
-        if (selected.type == 'text' || selected.type == 'button') ...[
-          TextFormField(
-            initialValue: selected.text,
-            decoration: const InputDecoration(
-              labelText: 'text',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onFieldSubmitted: (value) {
-              final key = selected.type == 'text' ? 'text' : 'label';
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                key,
-                value,
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (selected.type == 'appbar') ...[
-          TextFormField(
-            initialValue:
-                selected.properties['title']?.toString() ?? 'AppBar title',
-            decoration: const InputDecoration(
-              labelText: 'title',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onFieldSubmitted: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'title',
-                value,
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-          TextFormField(
-            initialValue:
-                selected.properties['backgroundColor']?.toString() ??
-                '0xFF2E7D32',
-            decoration: const InputDecoration(
-              labelText: 'backgroundColor',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onFieldSubmitted: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'backgroundColor',
-                value,
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (selected.type == 'button')
-          SwitchListTile(
-            value: selected.properties['enabled'] != false,
-            title: const Text('enabled'),
-            contentPadding: EdgeInsets.zero,
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'enabled',
-                value,
-              );
-            },
-          ),
-        if (selected.type == 'single_scroll') ...[
-          _buildEnumField(
-            label: 'scrollDirection',
-            value:
-                selected.properties['scrollDirection']?.toString() ??
-                'vertical',
-            options: const ['vertical', 'horizontal'],
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'scrollDirection',
-                value,
-              );
-            },
-          ),
-          _buildEnumField(
-            label: 'physics',
-            value: selected.properties['physics']?.toString() ?? 'clamping',
-            options: const ['clamping', 'bouncing', 'never'],
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'physics',
-                value,
-              );
-            },
-          ),
-          SwitchListTile(
-            value: selected.properties['reverse'] == true,
-            title: const Text('reverse'),
-            contentPadding: EdgeInsets.zero,
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'reverse',
-                value,
-              );
-            },
-          ),
-          TextFormField(
-            initialValue:
-                (selected.properties['padding'] as num?)?.toString() ?? '8',
-            decoration: const InputDecoration(
-              labelText: 'padding',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onFieldSubmitted: (value) {
-              final parsed = double.tryParse(value.trim());
-              if (parsed == null) return;
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'padding',
-                parsed,
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (selected.type == 'padding') ...[
-          TextFormField(
-            initialValue:
-                (selected.properties['padding'] as num?)?.toString() ?? '8',
-            decoration: const InputDecoration(
-              labelText: 'padding',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onFieldSubmitted: (value) {
-              final parsed = double.tryParse(value.trim());
-              if (parsed == null) return;
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'padding',
-                parsed,
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (selected.type == 'expanded') ...[
-          TextFormField(
-            initialValue:
-                (selected.properties['flex'] as num?)?.toString() ?? '1',
-            decoration: const InputDecoration(
-              labelText: 'flex',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onFieldSubmitted: (value) {
-              final parsed = int.tryParse(value.trim());
-              if (parsed == null || parsed < 1) return;
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'flex',
-                parsed,
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (selected.type == 'row' || selected.type == 'column') ...[
-          _buildEnumField(
-            label: 'mainAxisAlignment',
-            value:
-                selected.properties['mainAxisAlignment']?.toString() ?? 'start',
-            options: const [
-              'start',
-              'center',
-              'end',
-              'spaceBetween',
-              'spaceAround',
-              'spaceEvenly',
-            ],
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'mainAxisAlignment',
-                value,
-              );
-            },
-          ),
-          _buildEnumField(
-            label: 'crossAxisAlignment',
-            value:
-                selected.properties['crossAxisAlignment']?.toString() ??
-                (selected.type == 'column' ? 'stretch' : 'center'),
-            options: const ['start', 'center', 'end', 'stretch'],
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'crossAxisAlignment',
-                value,
-              );
-            },
-          ),
-          _buildEnumField(
-            label: 'mainAxisSize',
-            value: selected.properties['mainAxisSize']?.toString() ?? 'min',
-            options: const ['min', 'max'],
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'mainAxisSize',
-                value,
-              );
-            },
-          ),
-          _buildEnumField(
-            label: 'textDirection',
-            value: selected.properties['textDirection']?.toString() ?? 'ltr',
-            options: const ['ltr', 'rtl'],
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'textDirection',
-                value,
-              );
-            },
-          ),
-          _buildEnumField(
-            label: 'verticalDirection',
-            value:
-                selected.properties['verticalDirection']?.toString() ?? 'down',
-            options: const ['down', 'up'],
-            onChanged: (value) {
-              _updateWidgetProperty(
-                project,
-                projectIndex,
-                pageIndex,
-                page,
-                selected.id,
-                'verticalDirection',
-                value,
-              );
-            },
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (selected.type == 'row' || selected.type == 'column')
+        if (cards.isEmpty)
           Text(
-            'children: ${children.length}',
+            'Bu widget uchun basic atribut yo\'q',
             style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+          )
+        else
+          SizedBox(
+            height: 94,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: cards.length,
+              itemBuilder: (context, index) =>
+                  SizedBox(width: 170, child: cards[index]),
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+            ),
           ),
       ],
     );
+  }
+
+  Widget _buildPropertyAction({
+    required String label,
+    required String value,
+    required IconData icon,
+    Future<void> Function()? onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap == null
+          ? null
+          : () async {
+              await onTap();
+            },
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: onTap == null ? const Color(0xFFDDE3ED) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: Colors.blueGrey.shade700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value.isEmpty ? '(bo\'sh)' : value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showTextInputDialog({
+    required String title,
+    required String initial,
+    TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    final controller = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          decoration: InputDecoration(
+            hintText: title,
+            isDense: true,
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Bekor'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Saqlash'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showEnumPickerDialog({
+    required String title,
+    required List<String> options,
+    required String current,
+  }) {
+    return showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(title),
+        children: options
+            .map(
+              (item) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, item),
+                child: Row(
+                  children: [
+                    Icon(
+                      item == current
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      size: 18,
+                      color: item == current ? Colors.blue : Colors.grey,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(item),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Future<bool?> _showBoolPickerDialog({
+    required String title,
+    required bool current,
+  }) async {
+    final picked = await _showEnumPickerDialog(
+      title: title,
+      options: const ['true', 'false'],
+      current: current.toString(),
+    );
+    if (picked == null) return null;
+    return picked == 'true';
   }
 
   Widget _buildEventProperties(
@@ -1440,6 +2113,16 @@ class _UiTabState extends ConsumerState<UiTab> {
       }
     }
 
+    if (targetParentId == null &&
+        template.type != 'appbar' &&
+        template.type != 'fab' &&
+        _bodyRoots(page.widgets).isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Body root faqat bitta element')),
+      );
+      return;
+    }
+
     if ((template.type == 'appbar' || template.type == 'fab') &&
         targetParentId != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1498,11 +2181,9 @@ class _UiTabState extends ConsumerState<UiTab> {
       pageIndex,
       page.copyWith(widgets: widgets),
     );
-
-    setState(() {
-      _selectedWidgetId = newWidget.id;
-      _sheetTab = _PropertySheetTab.basic;
-    });
+    if (_selectedWidgetId != null) {
+      setState(() => _selectedWidgetId = null);
+    }
     HapticFeedback.selectionClick();
   }
 
@@ -1562,7 +2243,11 @@ class _UiTabState extends ConsumerState<UiTab> {
         return WidgetData(
           id: id,
           type: 'button',
-          properties: {'label': 'Button', 'enabled': true},
+          properties: {
+            'label': 'Button',
+            'enabled': true,
+            'backgroundColor': '0xFF1976D2',
+          },
         );
       case 'row':
         return WidgetData(
@@ -1796,34 +2481,144 @@ class _UiTabState extends ConsumerState<UiTab> {
     );
   }
 
-  Widget _buildEnumField({
-    required String label,
-    required String value,
-    required List<String> options,
-    required ValueChanged<String> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          isDense: true,
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            isDense: true,
-            value: options.contains(value) ? value : options.first,
-            items: options
-                .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-                .toList(),
-            onChanged: (next) {
-              if (next == null) return;
-              onChanged(next);
-            },
+  Future<Color?> _pickColor(Color initial) {
+    var selected = initial;
+    return showModalBottomSheet<Color>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: selected,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.black.withValues(alpha: 0.2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      _colorToHex(selected),
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final color in _defaultColors)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(99),
+                        onTap: () => setSheetState(() => selected = color),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selected.toARGB32() == color.toARGB32()
+                                  ? Colors.black
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildColorSlider(
+                  label: 'R',
+                  value: (selected.r * 255).roundToDouble(),
+                  activeColor: Colors.red,
+                  onChanged: (value) => setSheetState(
+                    () => selected = selected.withRed(value.round()),
+                  ),
+                ),
+                _buildColorSlider(
+                  label: 'G',
+                  value: (selected.g * 255).roundToDouble(),
+                  activeColor: Colors.green,
+                  onChanged: (value) => setSheetState(
+                    () => selected = selected.withGreen(value.round()),
+                  ),
+                ),
+                _buildColorSlider(
+                  label: 'B',
+                  value: (selected.b * 255).roundToDouble(),
+                  activeColor: Colors.blue,
+                  onChanged: (value) => setSheetState(
+                    () => selected = selected.withBlue(value.round()),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Bekor'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context, selected),
+                        child: const Text('Tanlash'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildColorSlider({
+    required String label,
+    required double value,
+    required Color activeColor,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Row(
+      children: [
+        SizedBox(width: 18, child: Text(label)),
+        Expanded(
+          child: Slider(
+            value: value.clamp(0, 255).toDouble(),
+            max: 255,
+            activeColor: activeColor,
+            onChanged: onChanged,
+          ),
+        ),
+        SizedBox(
+          width: 34,
+          child: Text(value.round().toString(), textAlign: TextAlign.right),
+        ),
+      ],
     );
   }
 
@@ -1908,6 +2703,24 @@ class _UiTabState extends ConsumerState<UiTab> {
     return result;
   }
 
+  List<WidgetData> _bodyRoots(List<WidgetData> widgets) {
+    final appBarWidget = widgets
+        .where((item) => item.type == 'appbar')
+        .cast<WidgetData?>()
+        .firstOrNull;
+    final fabWidget = widgets
+        .where((item) => item.type == 'fab')
+        .cast<WidgetData?>()
+        .firstOrNull;
+    return widgets
+        .where(
+          (item) =>
+              (appBarWidget == null || item.id != appBarWidget.id) &&
+              (fabWidget == null || item.id != fabWidget.id),
+        )
+        .toList();
+  }
+
   void _updatePage(
     WidgetRef ref,
     ProjectData project,
@@ -1936,13 +2749,23 @@ class _UiTabState extends ConsumerState<UiTab> {
         .toLowerCase();
   }
 
-  Color _parseColor(String? hexString) {
-    if (hexString == null || hexString.isEmpty) return Colors.green.shade700;
+  Color _parseColor(String? hexString, {Color? fallback}) {
+    final base = fallback ?? Colors.green.shade700;
+    if (hexString == null || hexString.isEmpty) return base;
     try {
       return Color(int.parse(hexString));
     } catch (_) {
-      return Colors.green.shade700;
+      return base;
     }
+  }
+
+  String _colorToHex(Color color) {
+    final hex = color
+        .toARGB32()
+        .toRadixString(16)
+        .toUpperCase()
+        .padLeft(8, '0');
+    return '0x$hex';
   }
 }
 
@@ -1960,10 +2783,16 @@ class _WidgetTemplate {
   });
 }
 
-class _WidgetDragPayload {
-  final String widgetId;
+class _CanvasDragPayload {
+  final _WidgetTemplate? template;
+  final String? widgetId;
 
-  const _WidgetDragPayload({required this.widgetId});
+  const _CanvasDragPayload._({this.template, this.widgetId});
+
+  const _CanvasDragPayload.template(_WidgetTemplate value)
+    : this._(template: value);
+
+  const _CanvasDragPayload.widget(String id) : this._(widgetId: id);
 }
 
 extension _FirstOrNullExt<T> on Iterable<T> {

@@ -87,6 +87,7 @@ class DartCodeGenerator {
               (fabWidget == null || widget.id != fabWidget.id),
         )
         .toList();
+    final bodyRoot = bodyWidgets.firstOrNull;
 
     final initStateCode = generateActionBlocksOnly(
       project,
@@ -128,21 +129,9 @@ ${buttonIds.map((id) {
 '''
         : '';
 
-    final bodyCode = bodyWidgets.isEmpty
+    final bodyCode = bodyRoot == null
         ? '      body: const SizedBox.shrink(),'
-        : bodyWidgets.length == 1
-        ? '      body:\n${_indentLines(_generateWidgetCode(project, bodyWidgets.first, logicById: page.logic, indent: '', useNamedRoutes: useNamedRoutes, useEnabledStateMap: hasSetEnabled && isStateful, routeByPageId: routeByPageId, classByPageId: classByPageId, insideFlex: false), 8)},'
-        : '''
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-${bodyWidgets.map((widget) {
-            final code = _generateWidgetCode(project, widget, logicById: page.logic, indent: '', useNamedRoutes: useNamedRoutes, useEnabledStateMap: hasSetEnabled && isStateful, routeByPageId: routeByPageId, classByPageId: classByPageId, insideFlex: false);
-            return '${_indentLines(code, 10)},';
-          }).join('\n')}
-        ],
-      ),''';
+        : '      body:\n${_indentLines(_generateWidgetCode(project, bodyRoot, logicById: page.logic, indent: '', useNamedRoutes: useNamedRoutes, useEnabledStateMap: hasSetEnabled && isStateful, routeByPageId: routeByPageId, classByPageId: classByPageId, insideFlex: false), 8)},';
 
     final appBarCode = appBarWidget == null
         ? ''
@@ -322,6 +311,10 @@ $indent )''';
         final enabledExpression = useEnabledStateMap
             ? "(_enabledById['${_escapeDartString(widget.id)}'] ?? ${widget.enabled})"
             : (widget.enabled ? 'true' : 'false');
+        final backgroundColor = _colorLiteral(
+          widget.properties['backgroundColor']?.toString(),
+          project.colorPrimary,
+        );
         final onPressedBody = onPressedCode.isEmpty
             ? '$indent      // Tugma bosilganda'
             : onPressedCode;
@@ -336,6 +329,10 @@ $indent  } : null,
 $indent  onLongPress: $enabledExpression ? () {
 $onLongPressedBody
 $indent  } : null,
+$indent  style: ElevatedButton.styleFrom(
+$indent    backgroundColor: $backgroundColor,
+$indent    foregroundColor: Colors.white,
+$indent  ),
 $indent  child: Text("${_escapeDartString(widget.text)}"),
 $indent )''';
       case 'single_scroll':
@@ -348,7 +345,7 @@ $indent )''';
         );
         final reverse = widget.properties['reverse'] == true ? 'true' : 'false';
         final padding =
-            (widget.properties['padding'] as num?)?.toDouble() ?? 8.0;
+            (widget.properties['padding'] as num?)?.toDouble() ?? 0.0;
         final childCode = children.isEmpty
             ? '$innerIndent const SizedBox.shrink()'
             : _generateWidgetCode(
@@ -373,7 +370,7 @@ $childCode,
 $indent )''';
       case 'padding':
         final padding =
-            (widget.properties['padding'] as num?)?.toDouble() ?? 8.0;
+            (widget.properties['padding'] as num?)?.toDouble() ?? 0.0;
         final childCode = children.isEmpty
             ? '$innerIndent const SizedBox.shrink()'
             : _generateWidgetCode(
@@ -437,23 +434,15 @@ $indent )''';
                   .map((code) => '$code,')
                   .join('\n');
         return '''
-$indent LayoutBuilder(
-$indent  builder: (context, constraints) {
-$indent    final row = Row(
-$indent      mainAxisAlignment: ${_mainAxisAlignmentExpression(widget.properties['mainAxisAlignment']?.toString())},
-$indent      crossAxisAlignment: ${_crossAxisAlignmentExpression(widget.properties['crossAxisAlignment']?.toString())},
-$indent      mainAxisSize: ${_mainAxisSizeExpression(widget.properties['mainAxisSize']?.toString())},
-$indent      textDirection: ${_textDirectionExpression(widget.properties['textDirection']?.toString())},
-$indent      verticalDirection: ${_verticalDirectionExpression(widget.properties['verticalDirection']?.toString())},
-$indent      children: [
+$indent Row(
+$indent  mainAxisAlignment: ${_mainAxisAlignmentExpression(widget.properties['mainAxisAlignment']?.toString())},
+$indent  crossAxisAlignment: ${_crossAxisAlignmentExpression(widget.properties['crossAxisAlignment']?.toString())},
+$indent  mainAxisSize: ${_mainAxisSizeExpression(widget.properties['mainAxisSize']?.toString())},
+$indent  textDirection: ${_textDirectionExpression(widget.properties['textDirection']?.toString())},
+$indent  verticalDirection: ${_verticalDirectionExpression(widget.properties['verticalDirection']?.toString())},
+$indent  children: [
 $rowChildren
-$indent      ],
-$indent    );
-$indent    if (constraints.hasBoundedWidth) {
-$indent      return SizedBox(width: constraints.maxWidth, child: row);
-$indent    }
-$indent    return row;
-$indent  },
+$indent  ],
 $indent )''';
       case 'column':
         final columnChildren = children.isEmpty
@@ -475,23 +464,15 @@ $indent )''';
                   .map((code) => '$code,')
                   .join('\n');
         return '''
-$indent LayoutBuilder(
-$indent  builder: (context, constraints) {
-$indent    final column = Column(
-$indent      mainAxisAlignment: ${_mainAxisAlignmentExpression(widget.properties['mainAxisAlignment']?.toString())},
-$indent      crossAxisAlignment: ${_crossAxisAlignmentExpression(widget.properties['crossAxisAlignment']?.toString())},
-$indent      mainAxisSize: ${_mainAxisSizeExpression(widget.properties['mainAxisSize']?.toString())},
-$indent      textDirection: ${_textDirectionExpression(widget.properties['textDirection']?.toString())},
-$indent      verticalDirection: ${_verticalDirectionExpression(widget.properties['verticalDirection']?.toString())},
-$indent      children: [
+$indent Column(
+$indent  mainAxisAlignment: ${_mainAxisAlignmentExpression(widget.properties['mainAxisAlignment']?.toString())},
+$indent  crossAxisAlignment: ${_crossAxisAlignmentExpression(widget.properties['crossAxisAlignment']?.toString())},
+$indent  mainAxisSize: ${_mainAxisSizeExpression(widget.properties['mainAxisSize']?.toString())},
+$indent  textDirection: ${_textDirectionExpression(widget.properties['textDirection']?.toString())},
+$indent  verticalDirection: ${_verticalDirectionExpression(widget.properties['verticalDirection']?.toString())},
+$indent  children: [
 $columnChildren
-$indent      ],
-$indent    );
-$indent    if (constraints.hasBoundedHeight) {
-$indent      return SizedBox(height: constraints.maxHeight, child: column);
-$indent    }
-$indent    return column;
-$indent  },
+$indent  ],
 $indent )''';
       default:
         return '$indent const SizedBox(), // Noma\'lum widget: ${widget.type}';
@@ -955,4 +936,8 @@ class _PageSpec {
     required this.className,
     required this.routeName,
   });
+}
+
+extension _FirstOrNullExt<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

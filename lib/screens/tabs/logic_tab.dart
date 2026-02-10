@@ -36,63 +36,73 @@ class LogicTab extends ConsumerWidget {
 
     return Container(
       color: const Color(0xFFF4F7FB),
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _openInitStateEditor(
-          context,
-          ref,
-          project,
-          page,
-          projectIndex,
-          pageIndex,
-          widgetIds,
-        ),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE0E6EE),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+        children: [
+          InkWell(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFCED6E0)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(Icons.code, size: 18),
+            onTap: () => _openInitStateEditor(
+              context,
+              ref,
+              project,
+              page,
+              projectIndex,
+              pageIndex,
+              widgetIds,
+            ),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0E6EE),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFCED6E0)),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'initState',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'On page opened',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.code, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'initState',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'On page opened',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  Text(
+                    '${page.events.screenOnCreate.length} blok',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.arrow_drop_down),
+                ],
               ),
-              Text(
-                '${page.events.screenOnCreate.length} blok',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-              ),
-              const SizedBox(width: 2),
-              const Icon(Icons.arrow_drop_down),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

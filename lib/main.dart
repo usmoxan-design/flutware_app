@@ -16,17 +16,22 @@ class FlutwareApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentProject = ref.watch(currentProjectProvider);
-    final primary = _parseColor(currentProject?.colorPrimary, Colors.blueAccent);
+    final primary = _parseColor(
+      currentProject?.colorPrimary,
+      Colors.blueAccent,
+    );
     final accent = _parseColor(currentProject?.colorAccent, Colors.deepOrange);
-    final useMaterial3 = currentProject?.useMaterial3 ?? true;
     final appTitle = currentProject?.appName ?? 'Flutterware';
 
     return MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: primary, secondary: accent),
-        useMaterial3: useMaterial3,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primary,
+          secondary: accent,
+        ),
+        useMaterial3: true,
         scaffoldBackgroundColor: Colors.white,
         floatingActionButtonTheme: FloatingActionButtonThemeData(
           backgroundColor: accent,

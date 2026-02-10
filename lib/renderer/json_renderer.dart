@@ -74,30 +74,15 @@ class _JsonRendererState extends State<JsonRenderer> {
         )
         .toList();
 
-    final body = bodyWidgets.isEmpty
+    final bodyRoot = bodyWidgets.firstOrNull;
+    final body = bodyRoot == null
         ? const SizedBox.shrink()
-        : bodyWidgets.length == 1
-        ? _buildWidget(
+        : _buildWidget(
             context,
-            bodyWidgets.first,
+            bodyRoot,
             primaryColor,
             accentColor,
             insideFlex: false,
-          )
-        : Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: bodyWidgets
-                .map(
-                  (item) => _buildWidget(
-                    context,
-                    item,
-                    primaryColor,
-                    accentColor,
-                    insideFlex: false,
-                  ),
-                )
-                .toList(),
           );
 
     return Scaffold(
@@ -150,6 +135,10 @@ class _JsonRendererState extends State<JsonRenderer> {
       case 'button':
         final enabled = _enabledByWidget[widgetData.id] ?? widgetData.enabled;
         final focusNode = _focusNodes.putIfAbsent(widgetData.id, FocusNode.new);
+        final buttonColor = _parseColor(
+          widgetData.properties['backgroundColor']?.toString(),
+          fallback: primaryColor,
+        );
         return _wrapSelectable(
           widgetData,
           ElevatedButton(
@@ -164,7 +153,7 @@ class _JsonRendererState extends State<JsonRenderer> {
                   }
                 : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
+              backgroundColor: buttonColor,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -187,31 +176,23 @@ class _JsonRendererState extends State<JsonRenderer> {
             .toList();
         return _wrapSelectable(
           widgetData,
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final row = Row(
-                mainAxisAlignment: _parseMainAxisAlignment(
-                  widgetData.properties['mainAxisAlignment']?.toString(),
-                ),
-                crossAxisAlignment: _parseCrossAxisAlignment(
-                  widgetData.properties['crossAxisAlignment']?.toString(),
-                ),
-                mainAxisSize: _parseMainAxisSize(
-                  widgetData.properties['mainAxisSize']?.toString(),
-                ),
-                textDirection: _parseTextDirection(
-                  widgetData.properties['textDirection']?.toString(),
-                ),
-                verticalDirection: _parseVerticalDirection(
-                  widgetData.properties['verticalDirection']?.toString(),
-                ),
-                children: rowChildren,
-              );
-              if (constraints.hasBoundedWidth) {
-                return SizedBox(width: constraints.maxWidth, child: row);
-              }
-              return row;
-            },
+          Row(
+            mainAxisAlignment: _parseMainAxisAlignment(
+              widgetData.properties['mainAxisAlignment']?.toString(),
+            ),
+            crossAxisAlignment: _parseCrossAxisAlignment(
+              widgetData.properties['crossAxisAlignment']?.toString(),
+            ),
+            mainAxisSize: _parseMainAxisSize(
+              widgetData.properties['mainAxisSize']?.toString(),
+            ),
+            textDirection: _parseTextDirection(
+              widgetData.properties['textDirection']?.toString(),
+            ),
+            verticalDirection: _parseVerticalDirection(
+              widgetData.properties['verticalDirection']?.toString(),
+            ),
+            children: rowChildren,
           ),
         );
       case 'column':
@@ -228,31 +209,23 @@ class _JsonRendererState extends State<JsonRenderer> {
             .toList();
         return _wrapSelectable(
           widgetData,
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final column = Column(
-                mainAxisAlignment: _parseMainAxisAlignment(
-                  widgetData.properties['mainAxisAlignment']?.toString(),
-                ),
-                crossAxisAlignment: _parseCrossAxisAlignment(
-                  widgetData.properties['crossAxisAlignment']?.toString(),
-                ),
-                mainAxisSize: _parseMainAxisSize(
-                  widgetData.properties['mainAxisSize']?.toString(),
-                ),
-                textDirection: _parseTextDirection(
-                  widgetData.properties['textDirection']?.toString(),
-                ),
-                verticalDirection: _parseVerticalDirection(
-                  widgetData.properties['verticalDirection']?.toString(),
-                ),
-                children: columnChildren,
-              );
-              if (constraints.hasBoundedHeight) {
-                return SizedBox(height: constraints.maxHeight, child: column);
-              }
-              return column;
-            },
+          Column(
+            mainAxisAlignment: _parseMainAxisAlignment(
+              widgetData.properties['mainAxisAlignment']?.toString(),
+            ),
+            crossAxisAlignment: _parseCrossAxisAlignment(
+              widgetData.properties['crossAxisAlignment']?.toString(),
+            ),
+            mainAxisSize: _parseMainAxisSize(
+              widgetData.properties['mainAxisSize']?.toString(),
+            ),
+            textDirection: _parseTextDirection(
+              widgetData.properties['textDirection']?.toString(),
+            ),
+            verticalDirection: _parseVerticalDirection(
+              widgetData.properties['verticalDirection']?.toString(),
+            ),
+            children: columnChildren,
           ),
         );
       case 'single_scroll':
@@ -334,16 +307,12 @@ class _JsonRendererState extends State<JsonRenderer> {
           : () => widget.onWidgetTap!(widgetData.id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.zero,
-          border: Border.all(
-            color: selected ? Colors.lightBlue : Colors.transparent,
-            width: 2,
-          ),
-          color: selected
-              ? Colors.lightBlue.withValues(alpha: 0.1)
-              : Colors.transparent,
-        ),
+        decoration: selected
+            ? BoxDecoration(
+                border: Border.all(color: Colors.lightBlue, width: 2),
+                color: Colors.lightBlue.withValues(alpha: 0.1),
+              )
+            : null,
         child: child,
       ),
     );
@@ -357,12 +326,13 @@ class _JsonRendererState extends State<JsonRenderer> {
     }).toList();
   }
 
-  Color _parseColor(String? hexString) {
-    if (hexString == null || hexString.isEmpty) return Colors.blue;
+  Color _parseColor(String? hexString, {Color? fallback}) {
+    final base = fallback ?? Colors.blue;
+    if (hexString == null || hexString.isEmpty) return base;
     try {
       return Color(int.parse(hexString));
     } catch (_) {
-      return Colors.blue;
+      return base;
     }
   }
 

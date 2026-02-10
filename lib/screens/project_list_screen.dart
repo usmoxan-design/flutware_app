@@ -71,8 +71,10 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 12,
+                ),
               ),
             ),
           ),
@@ -80,8 +82,8 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
             child: projects.isEmpty
                 ? _buildEmptyState(context)
                 : filtered.isEmpty
-                    ? _buildEmptySearch(context)
-                    : _buildProjectList(context, filtered),
+                ? _buildEmptySearch(context)
+                : _buildProjectList(context, filtered),
           ),
         ],
       ),
@@ -191,10 +193,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
 
   Widget _buildEmptySearch(BuildContext context) {
     return const Center(
-      child: Text(
-        'Hech narsa topilmadi',
-        style: TextStyle(color: Colors.grey),
-      ),
+      child: Text('Hech narsa topilmadi', style: TextStyle(color: Colors.grey)),
     );
   }
 
@@ -207,11 +206,14 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
     );
   }
 
-  void _showCreateDialog(BuildContext context) {
-    showDialog(
+  Future<void> _showCreateDialog(BuildContext context) async {
+    final createdIndex = await showDialog<int>(
       context: context,
       builder: (context) => const NewProjectDialog(),
     );
+    if (createdIndex == null) return;
+    if (!context.mounted) return;
+    _openProject(context, createdIndex);
   }
 
   void _showDeleteDialog(BuildContext context, int index, String name) {

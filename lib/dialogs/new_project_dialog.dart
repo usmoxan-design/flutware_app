@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/app_models.dart';
 import '../providers/project_provider.dart';
 
 class NewProjectDialog extends ConsumerStatefulWidget {
@@ -86,7 +85,7 @@ class _NewProjectDialogState extends ConsumerState<NewProjectDialog> {
           spacing: 8,
           runSpacing: 4,
           children: _palette.map((c) {
-            final isSelected = c.value == current.value;
+            final isSelected = c.toARGB32() == current.toARGB32();
             return GestureDetector(
               onTap: () => onSelect(c),
               child: Container(
@@ -111,6 +110,117 @@ class _NewProjectDialogState extends ConsumerState<NewProjectDialog> {
     );
   }
 
+  Widget _buildPickerField({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Text(value.isEmpty ? '-' : value)),
+            const Icon(Icons.arrow_drop_down),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<int?> _pickVersionCode(int initial) {
+    var selected = initial.clamp(1, 300);
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Version code'),
+        content: SizedBox(
+          width: 140,
+          height: 180,
+          child: ListWheelScrollView.useDelegate(
+            itemExtent: 34,
+            controller: FixedExtentScrollController(initialItem: selected - 1),
+            onSelectedItemChanged: (index) => selected = index + 1,
+            childDelegate: ListWheelChildBuilderDelegate(
+              childCount: 300,
+              builder: (context, index) => Center(child: Text('${index + 1}')),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Bekor'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, selected),
+            child: const Text('Tanlash'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _pickVersionName(String current) {
+    final parts = current.split('.');
+    var major = int.tryParse(parts.firstOrNull ?? '1')?.clamp(0, 99) ?? 1;
+    var minor =
+        int.tryParse(parts.length > 1 ? parts[1] : '0')?.clamp(0, 99) ?? 0;
+
+    Widget wheel({
+      required int initialItem,
+      required ValueChanged<int> onChanged,
+    }) {
+      return SizedBox(
+        width: 78,
+        height: 160,
+        child: ListWheelScrollView.useDelegate(
+          itemExtent: 34,
+          controller: FixedExtentScrollController(initialItem: initialItem),
+          onSelectedItemChanged: onChanged,
+          childDelegate: ListWheelChildBuilderDelegate(
+            childCount: 100,
+            builder: (context, index) => Center(child: Text('$index')),
+          ),
+        ),
+      );
+    }
+
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Version name'),
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            wheel(initialItem: major, onChanged: (value) => major = value),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Text('.'),
+            ),
+            wheel(initialItem: minor, onChanged: (value) => minor = value),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Bekor'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, '$major.$minor'),
+            child: const Text('Tanlash'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onCreate() {
     if (_formKey.currentState?.validate() ?? false) {
       final name = _appNameController.text.trim();
@@ -120,7 +230,12 @@ class _NewProjectDialogState extends ConsumerState<NewProjectDialog> {
 
       // Color to Hex String
       String colorToHex(Color c) {
-        return '0xFF${c.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+        final hex = c
+            .toARGB32()
+            .toRadixString(16)
+            .toUpperCase()
+            .padLeft(8, '0');
+        return '0x$hex';
       }
 
       final cPrimary = colorToHex(_colorPrimary);
@@ -129,6 +244,7 @@ class _NewProjectDialogState extends ConsumerState<NewProjectDialog> {
 
       // Check for duplicates
       final projects = ref.read(projectProvider);
+      final createdIndex = projects.length;
       final exists = projects.any((p) => p.packageName == pkg);
 
       if (exists) {
@@ -161,7 +277,7 @@ class _NewProjectDialogState extends ConsumerState<NewProjectDialog> {
             colorPrimaryDark: cPrimaryDark,
             colorAccent: cAccent,
           );
-      Navigator.pop(context);
+      Navigator.pop(context, createdIndex);
     }
   }
 
@@ -273,27 +389,35 @@ class _NewProjectDialogState extends ConsumerState<NewProjectDialog> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextFormField(
-                          controller: _versionCodeController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Ver. Code',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Req' : null,
+                        child: _buildPickerField(
+                          label: 'Ver. Code',
+                          value: _versionCodeController.text,
+                          onTap: () async {
+                            final current =
+                                int.tryParse(_versionCodeController.text) ?? 1;
+                            final picked = await _pickVersionCode(current);
+                            if (picked == null) return;
+                            setState(
+                              () => _versionCodeController.text = picked
+                                  .toString(),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: TextFormField(
-                          controller: _versionNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Ver. Name',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Req' : null,
+                        child: _buildPickerField(
+                          label: 'Ver. Name',
+                          value: _versionNameController.text,
+                          onTap: () async {
+                            final picked = await _pickVersionName(
+                              _versionNameController.text,
+                            );
+                            if (picked == null) return;
+                            setState(
+                              () => _versionNameController.text = picked,
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -320,4 +444,8 @@ class _NewProjectDialogState extends ConsumerState<NewProjectDialog> {
       ],
     );
   }
+}
+
+extension _FirstOrNullExt<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

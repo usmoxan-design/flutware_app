@@ -67,6 +67,15 @@ class _PreviewTabState extends ConsumerState<PreviewTab> {
                   minimumSize: const Size(double.infinity, 50),
                 ),
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => _clearBuildCache(context),
+                icon: const Icon(Icons.cleaning_services_outlined),
+                label: const Text('Build cache tozalash'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 44),
+                ),
+              ),
               if (_lastApkPath != null) ...[
                 const SizedBox(height: 8),
                 Row(
@@ -575,6 +584,74 @@ class _PreviewTabState extends ConsumerState<PreviewTab> {
         ],
       ),
     );
+  }
+
+  Future<void> _clearBuildCache(BuildContext context) async {
+    try {
+      final candidates = <Directory>{
+        await getTemporaryDirectory(),
+        await getApplicationCacheDirectory(),
+        await getApplicationSupportDirectory(),
+      };
+
+      var removedFiles = 0;
+      for (final directory in candidates) {
+        removedFiles += _deleteBuildArtifacts(directory);
+      }
+
+      if (_lastApkPath != null) {
+        final file = File(_lastApkPath!);
+        if (await file.exists()) {
+          await file.delete();
+          removedFiles++;
+        }
+      }
+
+      ApkBuilder.logs.clear();
+      if (mounted) {
+        setState(() => _lastApkPath = null);
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$removedFiles ta build/cache fayli tozalandi.'),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Cache tozalashda xatolik: $e')));
+    }
+  }
+
+  int _deleteBuildArtifacts(Directory directory) {
+    if (!directory.existsSync()) return 0;
+    var count = 0;
+    try {
+      for (final entity in directory.listSync(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is! File) continue;
+        final normalized = entity.path.replaceAll('\\', '/').toLowerCase();
+        final shouldDelete =
+            normalized.endsWith('.apk') ||
+            normalized.endsWith('.aab') ||
+            normalized.endsWith('_flutter_source.zip') ||
+            normalized.endsWith('/template_source.apk');
+        if (!shouldDelete) continue;
+        try {
+          entity.deleteSync();
+          count++;
+        } catch (_) {
+          // Ignore individual file delete errors and keep cleaning.
+        }
+      }
+    } catch (_) {
+      // Ignore directory traversal errors.
+    }
+    return count;
   }
 
   Future<void> _handleExportCode(
