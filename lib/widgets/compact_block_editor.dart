@@ -87,23 +87,37 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
           ),
           if (_paletteSheetOpen) _buildPaletteOverlay(),
           if (_showDragActions) _buildDragActionBar(),
-          Positioned(
-            right: 12,
-            bottom: 12,
-            child: FloatingActionButton.small(
-              heroTag: '${widget.eventLabel}_fab',
-              onPressed: _togglePaletteSheet,
-              backgroundColor: const Color(0xFF1E88E5),
-              foregroundColor: Colors.white,
-              child: Icon(_paletteSheetOpen ? Icons.close : Icons.extension),
-            ),
-          ),
+          Positioned(right: 12, bottom: 12, child: _buildPaletteToggleButton()),
         ],
       ),
     );
   }
 
+  Widget _buildPaletteToggleButton() {
+    return Material(
+      color: const Color(0xFF5A77B8),
+      borderRadius: BorderRadius.circular(18),
+      elevation: 6,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: _togglePaletteSheet,
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: Icon(
+            _paletteSheetOpen ? Icons.close_rounded : Icons.extension_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPaletteOverlay() {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final sheetHeight = (screenHeight * 0.36).clamp(236.0, 320.0);
+
     return Positioned.fill(
       child: Column(
         children: [
@@ -111,25 +125,25 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => setState(() => _paletteSheetOpen = false),
-              child: Container(color: Colors.black.withValues(alpha: 0.05)),
+              child: Container(color: Colors.black.withValues(alpha: 0.03)),
             ),
           ),
           Container(
-            height: MediaQuery.of(context).size.height * 0.46,
+            height: sheetHeight,
             decoration: BoxDecoration(
-              color: const Color(0xFFE8EFF7),
+              color: const Color(0xFFE9ECF3),
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(18),
+                top: Radius.circular(16),
               ),
               border: Border.all(color: Colors.grey.shade300),
             ),
             child: Column(
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Center(
                   child: Container(
-                    width: 42,
-                    height: 4,
+                    width: 34,
+                    height: 3,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade500,
                       borderRadius: BorderRadius.circular(10),
@@ -249,78 +263,141 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-          child: Column(
+          padding: const EdgeInsets.fromLTRB(10, 8, 8, 6),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.extension, size: 16),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Block palette',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () => setState(() => _paletteSheetOpen = false),
-                    icon: const Icon(Icons.close, size: 14),
-                    label: const Text('Yopish'),
-                  ),
-                ],
+              const Icon(Icons.extension, size: 15),
+              const SizedBox(width: 6),
+              const Text(
+                'Block palette',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Qidiruv...',
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search, size: 16),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                children: BlockCategory.values.map((category) {
-                  final selected = category == _selectedCategory;
-                  return ChoiceChip(
-                    label: Text(
-                      category.label,
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    selected: selected,
-                    onSelected: (_) {
-                      setState(() => _selectedCategory = category);
-                    },
-                  );
-                }).toList(),
+              const Spacer(),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _paletteSheetOpen = false),
+                icon: const Icon(Icons.close, size: 18),
               ),
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              hintText: 'Search...',
+              isDense: true,
+              prefixIcon: const Icon(Icons.search, size: 15),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(9),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 8,
+              ),
+            ),
+          ),
+        ),
         const Divider(height: 1),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
-            itemCount: defs.length,
-            itemBuilder: (context, index) {
-              final def = defs[index];
-              return Align(
-                alignment: Alignment.centerLeft,
-                widthFactor: 1,
-                child: _buildPaletteItem(def),
-              );
-            },
+          child: Row(
+            children: [
+              Expanded(child: _buildPaletteBlockList(defs)),
+              VerticalDivider(width: 1, color: Colors.grey.shade300),
+              SizedBox(width: 126, child: _buildCategoryRail()),
+            ],
           ),
         ),
       ],
     );
+  }
+
+  Widget _buildPaletteBlockList(List<BlockDefinition> defs) {
+    if (defs.isEmpty) {
+      return Center(
+        child: Text(
+          'Blok topilmadi',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      itemCount: defs.length,
+      itemBuilder: (context, index) {
+        final def = defs[index];
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: _buildPaletteItem(def),
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryRail() {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
+      itemCount: BlockCategory.values.length,
+      itemBuilder: (context, index) {
+        final category = BlockCategory.values[index];
+        return _buildCategoryRailItem(category);
+      },
+    );
+  }
+
+  Widget _buildCategoryRailItem(BlockCategory category) {
+    final selected = category == _selectedCategory;
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => setState(() => _selectedCategory = category),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 110),
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.fromLTRB(6, 7, 6, 7),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? Colors.grey.shade400 : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 18,
+              decoration: BoxDecoration(
+                color: category.color,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                _paletteCategoryLabel(category),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? Colors.black87 : Colors.grey.shade800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _paletteCategoryLabel(BlockCategory category) {
+    return switch (category) {
+      BlockCategory.variable => 'Variable',
+      BlockCategory.control => 'Control',
+      BlockCategory.operator => 'Operator',
+      BlockCategory.view => 'View',
+    };
   }
 
   Widget _buildEventHeader() {
@@ -1072,7 +1149,7 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
       feedback: Material(
         color: Colors.transparent,
         child: SizedBox(
-          width: 250,
+          width: 226,
           child: _buildBlockBody(block, depth: 0, showRemove: false),
         ),
       ),
@@ -1101,9 +1178,9 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
     final block = BlockRegistry.create(def.type);
     return IgnorePointer(
       child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
+        margin: const EdgeInsets.only(bottom: 4),
         child: SizedBox(
-          width: 250,
+          width: 226,
           child: _buildBlockBody(block, depth: 0, showRemove: false),
         ),
       ),

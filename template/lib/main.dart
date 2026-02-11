@@ -25,16 +25,29 @@ class TemplateApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pages = project?.pages ?? const <PageData>[];
+    final firstPage = pages.isEmpty ? null : pages.first;
     return MaterialApp(
       title: project?.appName ?? 'Generated App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: project?.useMaterial3 ?? true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: _parseColor(project?.colorPrimary),
+        ),
       ),
-      home: project == null
+      home: project == null || firstPage == null
           ? const Scaffold(body: Center(child: Text('No project.json found')))
-          : JsonRenderer(pageData: project!.pages.first, projectData: project),
+          : JsonRenderer(pageData: firstPage, projectData: project),
     );
+  }
+
+  Color _parseColor(String? raw) {
+    if (raw == null || raw.isEmpty) return Colors.blue;
+    try {
+      return Color(int.parse(raw));
+    } catch (_) {
+      return Colors.blue;
+    }
   }
 }

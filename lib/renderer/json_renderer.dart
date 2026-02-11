@@ -141,25 +141,28 @@ class _JsonRendererState extends State<JsonRenderer> {
         );
         return _wrapSelectable(
           widgetData,
-          ElevatedButton(
-            focusNode: focusNode,
-            onPressed: enabled
-                ? () => _handleEvent(context, widgetData.id, 'onPressed')
-                : null,
-            onLongPress: enabled
-                ? () {
-                    HapticFeedback.vibrate();
-                    _handleEvent(context, widgetData.id, 'onLongPress');
-                  }
-                : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: buttonColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ElevatedButton(
+              focusNode: focusNode,
+              onPressed: enabled
+                  ? () => _handleEvent(context, widgetData.id, 'onPressed')
+                  : null,
+              onLongPress: enabled
+                  ? () {
+                      HapticFeedback.vibrate();
+                      _handleEvent(context, widgetData.id, 'onLongPress');
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: buttonColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
+              child: Text(widgetData.text),
             ),
-            child: Text(widgetData.text),
           ),
         );
       case 'row':
@@ -289,10 +292,8 @@ class _JsonRendererState extends State<JsonRenderer> {
         }
         return _wrapSelectable(widgetData, Expanded(flex: flex, child: child));
       default:
-        return _wrapSelectable(
-          widgetData,
-          Text('Unknown widget: ${widgetData.type}'),
-        );
+        debugPrint('Unknown widget type ignored: ${widgetData.type}');
+        return _wrapSelectable(widgetData, const SizedBox.shrink());
     }
   }
 

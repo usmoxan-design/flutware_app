@@ -1,12 +1,8 @@
 package uz.flutware.builder.app
 
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
-import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.os.Process
@@ -32,7 +28,6 @@ import java.math.BigInteger
 import java.util.Date
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
-import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import com.reandroid.apk.ApkModule
 import com.reandroid.arsc.chunk.xml.ResXmlAttribute
@@ -40,8 +35,6 @@ import com.reandroid.arsc.chunk.xml.ResXmlElement
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.flutware.builder/installer"
-    private val INSTALL_ACTION = "uz.flutware.builder.app.INSTALL_RESULT"
-    private var installReceiver: BroadcastReceiver? = null
 
     init {
         Security.addProvider(BouncyCastleProvider())
@@ -366,6 +359,9 @@ class MainActivity: FlutterActivity() {
 
     private fun installApk(path: String) {
         val apkFile = File(path)
+        if (!apkFile.exists()) {
+            throw FileNotFoundException("APK topilmadi: $path")
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val canInstall = packageManager.canRequestPackageInstalls()
@@ -381,68 +377,7 @@ class MainActivity: FlutterActivity() {
             }
         }
 
-        val packageInstaller = packageManager.packageInstaller
-        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-        val sessionId = packageInstaller.createSession(params)
-        val session = packageInstaller.openSession(sessionId)
-
-        session.openWrite("app", 0, apkFile.length()).use { out ->
-            apkFile.inputStream().use { input ->
-                input.copyTo(out)
-                session.fsync(out)
-            }
-        }
-
-        if (installReceiver != null) {
-            try {
-                unregisterReceiver(installReceiver)
-            } catch (_: Exception) {}
-            installReceiver = null
-        }
-
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: android.content.Context, intent: Intent) {
-                val status = intent.getIntExtra(
-                    PackageInstaller.EXTRA_STATUS,
-                    PackageInstaller.STATUS_FAILURE
-                )
-                val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-                val legacy = intent.getIntExtra("android.content.pm.extra.LEGACY_STATUS", Int.MIN_VALUE)
-
-                when (status) {
-                    PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                        val confirmIntent = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-                        confirmIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        if (confirmIntent != null) {
-                            startActivity(confirmIntent)
-                        } else {
-                            Log.e("FlutwareInstall", "User action intent topilmadi")
-                        }
-                    }
-                    PackageInstaller.STATUS_SUCCESS -> {
-                        Log.i("FlutwareInstall", "INSTALL_SUCCESS legacy=$legacy")
-                    }
-                    else -> {
-                        Log.e("FlutwareInstall", "INSTALL_FAILED status=$status legacy=$legacy msg=$message")
-                        // Fallback: system installer orqali urinib ko'ramiz
-                        installApkWithIntent(path)
-                    }
-                }
-
-                try {
-                    unregisterReceiver(this)
-                } catch (_: Exception) {}
-                installReceiver = null
-            }
-        }
-
-        registerReceiver(receiver, IntentFilter(INSTALL_ACTION))
-        installReceiver = receiver
-
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        val pendingIntent = PendingIntent.getBroadcast(this, sessionId, Intent(INSTALL_ACTION), flags)
-        session.commit(pendingIntent.intentSender)
-        session.close()
+        installApkWithIntent(path)
     }
 
     private fun installApkWithIntent(path: String) {
