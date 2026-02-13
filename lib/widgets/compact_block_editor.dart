@@ -34,6 +34,10 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
   String _search = '';
   bool _paletteSheetOpen = false;
   bool _showDragActions = false;
+  String? _draggingBlockId;
+  String? _activeStatementDropId;
+  String? _activeConditionParentId;
+  String? _pulseBlockId;
 
   @override
   void initState() {
@@ -247,6 +251,64 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
           ),
         );
       },
+    );
+  }
+
+  String _statementDropId({
+    required String? parentId,
+    required String? slotKey,
+    required int insertIndex,
+  }) {
+    return '${parentId ?? 'root'}::${slotKey ?? 'root'}::$insertIndex';
+  }
+
+  void _handleDragStarted({required String dragKey, required bool fromCanvas}) {
+    setState(() {
+      _draggingBlockId = dragKey;
+      _showDragActions = fromCanvas;
+    });
+  }
+
+  void _handleDragFinished() {
+    if (!mounted) return;
+    setState(() {
+      _draggingBlockId = null;
+      _activeStatementDropId = null;
+      _activeConditionParentId = null;
+      _showDragActions = false;
+    });
+  }
+
+  void _pulseBlock(String blockId) {
+    if (!mounted) return;
+    setState(() => _pulseBlockId = blockId);
+    Future.delayed(const Duration(milliseconds: 220), () {
+      if (!mounted || _pulseBlockId != blockId) {
+        return;
+      }
+      setState(() => _pulseBlockId = null);
+    });
+  }
+
+  Widget _buildFloatingFeedback(Widget child) {
+    return Material(
+      color: Colors.transparent,
+      child: Transform.scale(
+        scale: 1.03,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 22,
+                spreadRadius: 1.2,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 
@@ -510,6 +572,11 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
     bool emptyHint = false,
   }) {
     final fullCover = emptyHint && parentId == null && slotKey == null;
+    final dropId = _statementDropId(
+      parentId: parentId,
+      slotKey: slotKey,
+      insertIndex: insertIndex,
+    );
 
     return Padding(
       padding: EdgeInsets.only(left: fullCover ? 0 : depth * 14.0),
@@ -521,7 +588,18 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
             slotKey: slotKey,
           );
         },
+        onMove: (_) {
+          if (_activeStatementDropId == dropId) return;
+          setState(() => _activeStatementDropId = dropId);
+        },
+        onLeave: (_) {
+          if (_activeStatementDropId != dropId) return;
+          setState(() => _activeStatementDropId = null);
+        },
         onAcceptWithDetails: (details) {
+          if (_activeStatementDropId == dropId) {
+            setState(() => _activeStatementDropId = null);
+          }
           _acceptStatementDrop(
             details.data,
             parentId: parentId,
@@ -531,55 +609,83 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
         },
         builder: (context, candidateData, rejectedData) {
           final active = candidateData.isNotEmpty;
+          final hot = active || _activeStatementDropId == dropId;
           final screenH = MediaQuery.of(context).size.height;
           final height = fullCover
               ? (screenH * 0.76)
-              : (emptyHint ? (active ? 34.0 : 28.0) : (active ? 18.0 : 12.0));
+              : (emptyHint ? (hot ? 36.0 : 27.0) : (hot ? 22.0 : 11.0));
 
           return AnimatedContainer(
-            duration: const Duration(milliseconds: 90),
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
             margin: EdgeInsets.symmetric(vertical: fullCover ? 4 : 0.5),
             width: double.infinity,
             height: height,
             decoration: BoxDecoration(
-              color: active
-                  ? Colors.lightBlue.withValues(alpha: 0.25)
+              color: hot
+                  ? Colors.lightBlue.withValues(alpha: fullCover ? 0.2 : 0.24)
                   : (emptyHint || fullCover)
                   ? Colors.grey.withValues(alpha: 0.12)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(fullCover ? 14 : 8),
               border: Border.all(
-                color: active ? Colors.lightBlue : Colors.transparent,
-                width: active ? 1.5 : 1,
+                color: hot ? Colors.lightBlue.shade400 : Colors.transparent,
+                width: hot ? 1.7 : 1,
               ),
+              boxShadow: hot
+                  ? [
+                      BoxShadow(
+                        color: Colors.lightBlue.withValues(alpha: 0.2),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
             ),
             alignment: Alignment.center,
             child: fullCover
                 ? Text(
-                    active
-                        ? 'Shu yerga tashlang'
-                        : 'Blokni shu yerga olib keling',
+                    hot ? 'Shu yerga tashlang' : 'Blokni shu yerga olib keling',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: active ? Colors.blue : Colors.grey.shade600,
+                      color: hot ? Colors.blue.shade700 : Colors.grey.shade600,
                     ),
                   )
                 : emptyHint
                 ? Text(
-                    active ? 'Drop here' : 'Blockni shu yerga olib keling',
+                    hot ? 'Drop here' : 'Blockni shu yerga olib keling',
                     style: TextStyle(
                       fontSize: 9.5,
-                      color: active ? Colors.blue : Colors.grey.shade600,
+                      color: hot ? Colors.blue.shade700 : Colors.grey.shade600,
                     ),
                   )
                 : AnimatedContainer(
-                    duration: const Duration(milliseconds: 90),
-                    width: active ? 92 : 60,
-                    height: 3,
+                    duration: const Duration(milliseconds: 140),
+                    curve: Curves.easeOutCubic,
+                    width: hot ? 122 : 58,
+                    height: hot ? 4 : 2.5,
                     decoration: BoxDecoration(
-                      color: active ? Colors.lightBlue : Colors.transparent,
+                      gradient: hot
+                          ? LinearGradient(
+                              colors: [
+                                Colors.lightBlue.shade300,
+                                Colors.blue.shade500,
+                              ],
+                            )
+                          : null,
+                      color: hot ? null : Colors.transparent,
                       borderRadius: BorderRadius.circular(4),
+                      boxShadow: hot
+                          ? [
+                              BoxShadow(
+                                color: Colors.lightBlue.withValues(alpha: 0.35),
+                                blurRadius: 9,
+                                spreadRadius: 0.3,
+                              ),
+                            ]
+                          : null,
                     ),
                   ),
           );
@@ -603,6 +709,9 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
       return const SizedBox.shrink();
     }
 
+    final draggingThis = _draggingBlockId == block.id;
+    final pulseThis = _pulseBlockId == block.id;
+
     return Padding(
       padding: EdgeInsets.only(left: depth * 14.0, bottom: 0.5),
       child: DragTarget<_DragPayload>(
@@ -613,7 +722,33 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
             slotKey: slotKey,
           );
         },
+        onMove: (_) {
+          final hoverId = _statementDropId(
+            parentId: parentId,
+            slotKey: slotKey,
+            insertIndex: index + 1,
+          );
+          if (_activeStatementDropId == hoverId) return;
+          setState(() => _activeStatementDropId = hoverId);
+        },
+        onLeave: (_) {
+          final hoverId = _statementDropId(
+            parentId: parentId,
+            slotKey: slotKey,
+            insertIndex: index + 1,
+          );
+          if (_activeStatementDropId != hoverId) return;
+          setState(() => _activeStatementDropId = null);
+        },
         onAcceptWithDetails: (details) {
+          final hoverId = _statementDropId(
+            parentId: parentId,
+            slotKey: slotKey,
+            insertIndex: index + 1,
+          );
+          if (_activeStatementDropId == hoverId) {
+            setState(() => _activeStatementDropId = null);
+          }
           _acceptStatementDrop(
             details.data,
             parentId: parentId,
@@ -625,45 +760,52 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
           final active = candidateData.isNotEmpty;
           return LongPressDraggable<_DragPayload>(
             data: _DragPayload(block: block, fromCanvas: true),
-            onDragStarted: () => setState(() => _showDragActions = true),
-            onDragEnd: (_) => setState(() => _showDragActions = false),
-            onDraggableCanceled: (velocity, offset) =>
-                setState(() => _showDragActions = false),
-            onDragCompleted: () => setState(() => _showDragActions = false),
-            feedback: Material(
-              color: Colors.transparent,
-              child: ConstrainedBox(
+            hapticFeedbackOnStart: true,
+            dragAnchorStrategy: pointerDragAnchorStrategy,
+            onDragStarted: () =>
+                _handleDragStarted(dragKey: block.id, fromCanvas: true),
+            onDragEnd: (_) => _handleDragFinished(),
+            onDraggableCanceled: (velocity, offset) => _handleDragFinished(),
+            onDragCompleted: () => _handleDragFinished(),
+            feedback: _buildFloatingFeedback(
+              ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 320),
-                child: Opacity(
-                  opacity: 0.9,
-                  child: _buildBlockBody(
-                    block,
-                    depth: depth,
-                    snapHighlight: active,
-                  ),
+                child: _buildBlockBody(
+                  block,
+                  depth: depth,
+                  snapHighlight: true,
+                  showRemove: false,
+                  isFloating: true,
                 ),
               ),
             ),
             childWhenDragging: Opacity(
-              opacity: 0.35,
+              opacity: 0.32,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: _buildBlockBody(
                   block,
                   depth: depth,
                   snapHighlight: false,
+                  showRemove: false,
+                  isDragging: true,
                 ),
               ),
             ),
             child: AnimatedScale(
-              scale: active ? 1.015 : 1,
-              duration: const Duration(milliseconds: 90),
+              scale: pulseThis
+                  ? 1.02
+                  : (draggingThis ? 0.985 : (active ? 1.015 : 1)),
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOutCubic,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: _buildBlockBody(
                   block,
                   depth: depth,
-                  snapHighlight: active,
+                  snapHighlight: active || pulseThis,
+                  isFloating: active,
+                  pulse: pulseThis,
                 ),
               ),
             ),
@@ -678,72 +820,110 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
     required int depth,
     bool snapHighlight = false,
     bool showRemove = true,
+    bool isDragging = false,
+    bool isFloating = false,
+    bool pulse = false,
   }) {
     final definition = BlockRegistry.get(block.type);
     final category = definition?.category ?? block.category;
     final color = category.color;
     final isControl = block.type == 'if' || block.type == 'if_else';
+    final emphasized = snapHighlight || isFloating || pulse;
 
     return Align(
       alignment: Alignment.centerLeft,
       child: IntrinsicWidth(
-        child: CustomPaint(
-          painter: _LegoBlockPainter(color: color, highlight: snapHighlight),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: isControl ? 44 : 36),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        (definition?.title ?? block.type),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (widget.scope == BlockEditorScope.onCreate &&
-                          _contextOnlyTypes.contains(block.type))
-                        const Padding(
-                          padding: EdgeInsets.only(left: 6),
-                          child: Icon(
-                            Icons.warning_amber_rounded,
-                            size: 12,
-                            color: Colors.white,
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      ..._buildInputChips(block, definition),
-                      if (showRemove)
-                        GestureDetector(
-                          onTap: () => _removeBlock(block.id),
-                          child: const Icon(
-                            Icons.close,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                    ],
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          scale: pulse ? 1.02 : (isDragging ? 0.985 : (isFloating ? 1.015 : 1)),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            transform: Matrix4.translationValues(0, isFloating ? -2.5 : 0, 0),
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(
+                    alpha: emphasized ? 0.2 : 0.11,
                   ),
-                  if (isControl) ...[
-                    const SizedBox(height: 6),
-                    _buildConditionSlot(block, depth + 1),
-                    const SizedBox(height: 4),
-                    _buildStatementSlot(block, 'then', 'then', depth + 1),
-                    if (block.type == 'if_else') ...[
-                      const SizedBox(height: 4),
-                      _buildStatementSlot(block, 'else', 'else', depth + 1),
-                    ],
-                  ],
-                ],
+                  blurRadius: emphasized ? 14 : 7,
+                  spreadRadius: emphasized ? 0.5 : 0,
+                  offset: Offset(0, emphasized ? 8 : 3),
+                ),
+              ],
+            ),
+            child: Opacity(
+              opacity: isDragging ? 0.56 : 1,
+              child: CustomPaint(
+                painter: _LegoBlockPainter(
+                  color: color,
+                  highlight: emphasized,
+                  pulse: pulse,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: isControl ? 44 : 36),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              (definition?.title ?? block.type),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (widget.scope == BlockEditorScope.onCreate &&
+                                _contextOnlyTypes.contains(block.type))
+                              const Padding(
+                                padding: EdgeInsets.only(left: 6),
+                                child: Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 12,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            ..._buildInputChips(block, definition),
+                            if (showRemove)
+                              GestureDetector(
+                                onTap: () => _removeBlock(block.id),
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (isControl) ...[
+                          const SizedBox(height: 6),
+                          _buildConditionSlot(block, depth + 1),
+                          const SizedBox(height: 4),
+                          _buildStatementSlot(block, 'then', 'then', depth + 1),
+                          if (block.type == 'if_else') ...[
+                            const SizedBox(height: 4),
+                            _buildStatementSlot(
+                              block,
+                              'else',
+                              'else',
+                              depth + 1,
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -806,27 +986,53 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
       onWillAcceptWithDetails: (details) {
         return _canAcceptConditionDrop(details.data, parent.id);
       },
+      onMove: (_) {
+        if (_activeConditionParentId == parent.id) return;
+        setState(() => _activeConditionParentId = parent.id);
+      },
+      onLeave: (_) {
+        if (_activeConditionParentId != parent.id) return;
+        setState(() => _activeConditionParentId = null);
+      },
       onAcceptWithDetails: (details) {
+        if (_activeConditionParentId == parent.id) {
+          setState(() => _activeConditionParentId = null);
+        }
         _acceptConditionDrop(details.data, parent.id);
       },
       builder: (context, candidateData, rejectedData) {
         final active = candidateData.isNotEmpty;
-        return Container(
+        final hot = active || _activeConditionParentId == parent.id;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
           margin: EdgeInsets.only(left: depth * 6.0),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
+            color: Colors.white.withValues(alpha: hot ? 0.24 : 0.18),
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: active
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.55),
+              color: hot ? Colors.white : Colors.white.withValues(alpha: 0.55),
+              width: hot ? 1.6 : 1.0,
             ),
+            boxShadow: hot
+                ? [
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.28),
+                      blurRadius: 8,
+                      spreadRadius: 0.2,
+                    ),
+                  ]
+                : null,
           ),
           child: condition == null
               ? Text(
-                  active ? 'Drop condition' : 'Condition slot',
-                  style: const TextStyle(fontSize: 10, color: Colors.white),
+                  hot ? 'Drop condition' : 'Condition slot',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: hot ? Colors.white : Colors.white70,
+                    fontWeight: hot ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 )
               : _buildConditionValue(condition, parent.id),
         );
@@ -837,94 +1043,144 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
   Widget _buildConditionValue(BlockModel block, String parentId) {
     final def = BlockRegistry.get(block.type);
     final color = (def?.category ?? block.category).color;
+    final pulseThis = _pulseBlockId == block.id;
 
     return LongPressDraggable<_DragPayload>(
       data: _DragPayload(block: block, fromCanvas: true),
-      onDragStarted: () => setState(() => _showDragActions = true),
-      onDragEnd: (_) => setState(() => _showDragActions = false),
-      onDraggableCanceled: (velocity, offset) =>
-          setState(() => _showDragActions = false),
-      onDragCompleted: () => setState(() => _showDragActions = false),
-      feedback: Material(
-        color: Colors.transparent,
-        child: Opacity(
-          opacity: 0.9,
-          child: _buildConditionValueBody(block, color, parentId),
+      hapticFeedbackOnStart: true,
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      onDragStarted: () =>
+          _handleDragStarted(dragKey: block.id, fromCanvas: true),
+      onDragEnd: (_) => _handleDragFinished(),
+      onDraggableCanceled: (velocity, offset) => _handleDragFinished(),
+      onDragCompleted: () => _handleDragFinished(),
+      feedback: _buildFloatingFeedback(
+        _buildConditionValueBody(
+          block,
+          color,
+          parentId,
+          showRemove: false,
+          isFloating: true,
         ),
       ),
       childWhenDragging: Opacity(
-        opacity: 0.35,
-        child: _buildConditionValueBody(block, color, parentId),
+        opacity: 0.32,
+        child: _buildConditionValueBody(
+          block,
+          color,
+          parentId,
+          showRemove: false,
+          isDragging: true,
+        ),
       ),
-      child: _buildConditionValueBody(block, color, parentId),
+      child: _buildConditionValueBody(block, color, parentId, pulse: pulseThis),
     );
   }
 
   Widget _buildConditionValueBody(
     BlockModel block,
     Color color,
-    String parentId,
-  ) {
+    String parentId, {
+    bool showRemove = true,
+    bool isDragging = false,
+    bool isFloating = false,
+    bool pulse = false,
+  }) {
     final def = BlockRegistry.get(block.type);
     final inputs = def?.inputs ?? const <BlockInputSpec>[];
+    final emphasized = isFloating || pulse;
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 28),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            def?.title ?? block.type,
-            style: const TextStyle(
-              fontSize: 10,
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
+    return AnimatedScale(
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOutCubic,
+      scale: pulse ? 1.03 : (isFloating ? 1.02 : (isDragging ? 0.985 : 1)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.translationValues(0, isFloating ? -2 : 0, 0),
+        constraints: const BoxConstraints(minHeight: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              _mixColor(color, Colors.white, 0.18).withValues(alpha: 0.98),
+              color.withValues(alpha: 0.95),
+              _mixColor(color, Colors.black, 0.12).withValues(alpha: 0.98),
+            ],
           ),
-          const SizedBox(width: 6),
-          for (final input in inputs)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: InkWell(
-                onTap: () => _editInputValue(block, input),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    block.inputs[input.key]?.value?.toString() ?? input.label,
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: color,
-                      fontWeight: FontWeight.w700,
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(
+            color: emphasized
+                ? Colors.white.withValues(alpha: 0.9)
+                : Colors.white.withValues(alpha: 0.35),
+            width: emphasized ? 1.3 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: emphasized ? 0.26 : 0.14),
+              blurRadius: emphasized ? 12 : 6,
+              offset: Offset(0, emphasized ? 6 : 2),
+            ),
+          ],
+        ),
+        child: Opacity(
+          opacity: isDragging ? 0.56 : 1,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                def?.title ?? block.type,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 6),
+              for (final input in inputs)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: InkWell(
+                    onTap: () => _editInputValue(block, input),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        block.inputs[input.key]?.value?.toString() ??
+                            input.label,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          GestureDetector(
-            onTap: () {
-              final next = _setSingleSlot(
-                _blocks,
-                parentId: parentId,
-                slotKey: 'condition',
-                child: null,
-              );
-              _commit(next);
-            },
-            child: const Icon(Icons.close, size: 12, color: Colors.white),
+              if (showRemove)
+                GestureDetector(
+                  onTap: () {
+                    final next = _setSingleSlot(
+                      _blocks,
+                      parentId: parentId,
+                      slotKey: 'condition',
+                      child: null,
+                    );
+                    _commit(next);
+                  },
+                  child: const Icon(Icons.close, size: 12, color: Colors.white),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1036,6 +1292,7 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
       final index = insertIndex.clamp(0, root.length);
       root.insert(index, toInsert);
       _commit(root);
+      _pulseBlock(toInsert.id);
       return;
     }
 
@@ -1047,6 +1304,7 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
       child: toInsert,
     );
     _commit(inserted.blocks);
+    _pulseBlock(toInsert.id);
   }
 
   void _acceptConditionDrop(_DragPayload payload, String parentId) {
@@ -1069,6 +1327,7 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
       child: toInsert,
     );
     _commit(updated);
+    _pulseBlock(toInsert.id);
   }
 
   void _removeBlock(String id) {
@@ -1137,7 +1396,10 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
     final block = BlockRegistry.create(def.type);
     return LongPressDraggable<_DragPayload>(
       data: _DragPayload(block: block, fromCanvas: false),
+      hapticFeedbackOnStart: true,
+      dragAnchorStrategy: pointerDragAnchorStrategy,
       onDragStarted: () {
+        _handleDragStarted(dragKey: 'palette:${def.type}', fromCanvas: false);
         // Drag overlay chiqib bo'lgach sheetni yopamiz.
         Future.delayed(const Duration(milliseconds: 16), () {
           if (!mounted || !_paletteSheetOpen) {
@@ -1146,15 +1408,23 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
           setState(() => _paletteSheetOpen = false);
         });
       },
-      feedback: Material(
-        color: Colors.transparent,
-        child: SizedBox(
+      onDragEnd: (_) => _handleDragFinished(),
+      onDraggableCanceled: (velocity, offset) => _handleDragFinished(),
+      onDragCompleted: () => _handleDragFinished(),
+      feedback: _buildFloatingFeedback(
+        SizedBox(
           width: 226,
-          child: _buildBlockBody(block, depth: 0, showRemove: false),
+          child: _buildBlockBody(
+            block,
+            depth: 0,
+            showRemove: false,
+            snapHighlight: true,
+            isFloating: true,
+          ),
         ),
       ),
       childWhenDragging: Opacity(
-        opacity: 0.35,
+        opacity: 0.32,
         child: _buildPaletteItemBody(def),
       ),
       child: InkWell(
@@ -1490,8 +1760,13 @@ class _CompactBlockEditorState extends State<CompactBlockEditor> {
 class _LegoBlockPainter extends CustomPainter {
   final Color color;
   final bool highlight;
+  final bool pulse;
 
-  const _LegoBlockPainter({required this.color, required this.highlight});
+  const _LegoBlockPainter({
+    required this.color,
+    required this.highlight,
+    this.pulse = false,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1505,6 +1780,7 @@ class _LegoBlockPainter extends CustomPainter {
     final tabLeft = 18.0;
     final w = size.width;
     final h = size.height - tabHeight;
+    final drawHighlight = highlight || pulse;
 
     final path = Path()
       ..moveTo(r, 0)
@@ -1526,21 +1802,53 @@ class _LegoBlockPainter extends CustomPainter {
       ..quadraticBezierTo(0, 0, r, 0)
       ..close();
 
-    final fill = Paint()..color = color;
+    final bounds = Rect.fromLTWH(0, 0, w, h + tabHeight);
+
+    canvas.drawShadow(
+      path,
+      Colors.black.withValues(alpha: drawHighlight ? 0.3 : 0.18),
+      drawHighlight ? 7 : 3.8,
+      false,
+    );
+
+    final fill = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          _mixColor(color, Colors.white, 0.14),
+          color,
+          _mixColor(color, Colors.black, 0.1),
+        ],
+        stops: const [0, 0.45, 1],
+      ).createShader(bounds);
     canvas.drawPath(path, fill);
+
+    final gloss = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.white.withValues(alpha: drawHighlight ? 0.24 : 0.16),
+          Colors.white.withValues(alpha: 0.02),
+        ],
+      ).createShader(bounds);
+    canvas.drawPath(path, gloss);
 
     final border = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = highlight ? 2.1 : 1.2
-      ..color = highlight
-          ? Colors.lightBlue.withValues(alpha: 0.95)
-          : color.withValues(alpha: 0.76);
+      ..strokeWidth = drawHighlight ? 2.0 : 1.15
+      ..color = drawHighlight
+          ? Colors.lightBlueAccent.withValues(alpha: 0.95)
+          : _mixColor(color, Colors.black, 0.24).withValues(alpha: 0.88);
     canvas.drawPath(path, border);
   }
 
   @override
   bool shouldRepaint(covariant _LegoBlockPainter oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.highlight != highlight;
+    return oldDelegate.color != color ||
+        oldDelegate.highlight != highlight ||
+        oldDelegate.pulse != pulse;
   }
 }
 
@@ -1625,6 +1933,10 @@ class _SetSlotResult {
   final bool changed;
 
   const _SetSlotResult({required this.blocks, required this.changed});
+}
+
+Color _mixColor(Color base, Color tint, double amount) {
+  return Color.lerp(base, tint, amount) ?? base;
 }
 
 const Set<String> _contextOnlyTypes = {

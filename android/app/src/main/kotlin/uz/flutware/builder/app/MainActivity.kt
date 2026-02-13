@@ -32,6 +32,8 @@ import java.util.zip.ZipOutputStream
 import com.reandroid.apk.ApkModule
 import com.reandroid.arsc.chunk.xml.ResXmlAttribute
 import com.reandroid.arsc.chunk.xml.ResXmlElement
+import io.flutter.plugins.GeneratedPluginRegistrant
+import io.flutter.plugins.webviewflutter.WebViewFlutterPlugin
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.flutware.builder/installer"
@@ -42,6 +44,18 @@ class MainActivity: FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // Ba'zi build/restart holatlarida WebView plugin auto-registr bo'lmay qolishi mumkin.
+        // Shuning uchun engine ichida plugin bor-yo'qligini tekshirib, yo'q bo'lsa registr qilamiz.
+        try {
+            if (!flutterEngine.plugins.has(WebViewFlutterPlugin::class.java)) {
+                GeneratedPluginRegistrant.registerWith(flutterEngine)
+            }
+        } catch (_: Exception) {
+            try {
+                GeneratedPluginRegistrant.registerWith(flutterEngine)
+            } catch (_: Exception) {
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getSupportedAbis" -> {

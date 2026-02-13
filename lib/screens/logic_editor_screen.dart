@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../models/app_models.dart';
 import '../utils/dart_code_generator.dart';
+import '../widgets/blockly_block_editor.dart';
 import '../widgets/compact_block_editor.dart';
 
 class LogicEditorScreen extends StatefulWidget {
@@ -81,7 +82,7 @@ class _LogicEditorScreenState extends State<LogicEditorScreen> {
             ),
           ],
         ),
-        body: CompactBlockEditor(
+        body: BlocklyBlockEditor(
           key: ValueKey('${widget.page.id}_${widget.eventLabel}'),
           eventLabel: widget.eventLabel,
           initialBlocks: _draftBlocks,

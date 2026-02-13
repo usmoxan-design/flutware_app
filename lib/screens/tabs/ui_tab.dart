@@ -52,9 +52,9 @@ class _UiTabState extends ConsumerState<UiTab> {
     Color(0xFF795548),
     Color(0xFF607D8B),
   ];
-  static const double _phoneWidth = 360;
-  static const double _phoneHeight = 760;
-  static const double _propertySheetHeight = 300;
+  // Mobil preview o'lchamlarini biroz kattalashtiramiz (Standard Pixel/iPhone o'lchamlari)
+  static const double _phoneWidth = 375;
+  static const double _phoneHeight = 750;
 
   _PropertySheetTab _sheetTab = _PropertySheetTab.basic;
   bool _isWidgetDragging = false;
@@ -89,7 +89,7 @@ class _UiTabState extends ConsumerState<UiTab> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isCompact = constraints.maxWidth < 900;
-          final paletteWidth = isCompact ? 138.0 : 178.0;
+          final paletteWidth = isCompact ? 130.0 : 165.0;
 
           return Stack(
             children: [
@@ -154,7 +154,7 @@ class _UiTabState extends ConsumerState<UiTab> {
           ),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(10, 4, 10, 190),
+              padding: const EdgeInsets.fromLTRB(5, 4, 5, 5),
               itemCount: templates.length,
               itemBuilder: (context, index) {
                 final template = templates[index];
@@ -191,7 +191,7 @@ class _UiTabState extends ConsumerState<UiTab> {
         child: Row(
           children: [
             Icon(template.icon, size: 17, color: Colors.blueGrey.shade700),
-            const SizedBox(width: 8),
+            const SizedBox(width: 5),
             Expanded(
               child: Text(
                 template.title,
@@ -213,7 +213,6 @@ class _UiTabState extends ConsumerState<UiTab> {
     WidgetData? selected, {
     required bool isCompact,
   }) {
-    final pageFileName = _pageFileName(page.name);
     final primaryDark = _parseColor(project.colorPrimaryDark);
     final appBarWidget = page.widgets
         .where((item) => item.type == 'appbar')
@@ -234,19 +233,19 @@ class _UiTabState extends ConsumerState<UiTab> {
       child: Container(
         color: Colors.grey.shade50,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            12,
-            10,
-            12,
-            selected == null ? 12 : _propertySheetHeight + 18,
+          padding: const EdgeInsets.fromLTRB(
+            5,
+            5,
+            5,
+            5, // PropertySheet endi ustiga chiqadi (Overlay), shuning uchun padding shart emas
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            // crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
                   Text(
-                    pageFileName,
+                    _pageFileName(page.name),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -257,137 +256,138 @@ class _UiTabState extends ConsumerState<UiTab> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: Center(
-                  child: DragTarget<_CanvasDragPayload>(
-                    onWillAcceptWithDetails: (details) =>
-                        details.data.template != null && bodyWidgets.isEmpty,
-                    onAcceptWithDetails: (details) {
-                      final template = details.data.template;
-                      if (template == null) return;
-                      if (_selectedWidgetId != null) {
-                        setState(() => _selectedWidgetId = null);
-                      }
-                      _addWidgetFromTemplate(template, page);
-                    },
-                    builder: (context, candidateData, rejectedData) {
-                      final phoneDropActive = candidateData.isNotEmpty;
-                      return FittedBox(
-                        fit: BoxFit.contain,
-                        child: Container(
-                          width: _phoneWidth,
-                          height: _phoneHeight,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(
-                              color: phoneDropActive
-                                  ? Colors.lightBlue
-                                  : Colors.grey.shade300,
-                              width: phoneDropActive ? 1.6 : 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 14,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                child: DragTarget<_CanvasDragPayload>(
+                  onWillAcceptWithDetails: (details) =>
+                      details.data.template != null && bodyWidgets.isEmpty,
+                  onAcceptWithDetails: (details) {
+                    final template = details.data.template;
+                    if (template == null) return;
+                    if (_selectedWidgetId != null) {
+                      setState(() => _selectedWidgetId = null);
+                    }
+                    _addWidgetFromTemplate(template, page);
+                  },
+                  builder: (context, candidateData, rejectedData) {
+                    final phoneDropActive = candidateData.isNotEmpty;
+                    // FittedBox orqali 375x812 o'lchamli canvasni ekran markaziga sig'diramiz
+                    // Bu skroll bo'lishini oldini oladi va proporsiyani saqlaydi
+                    return FittedBox(
+                      fit: BoxFit.contain,
+                      child: Container(
+                        width: _phoneWidth,
+                        height: _phoneHeight,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          // borderRadius: BorderRadius.circular(
+                          //   32,
+                          // ), // Zamonaviyroq ko'rinish uchun radius
+                          border: Border.all(
+                            color: phoneDropActive
+                                ? Colors.lightBlue
+                                : Colors.grey.shade400,
+                            width: phoneDropActive ? 2.5 : 1.5,
                           ),
-                          child: ClipRect(
-                            child: Stack(
-                              children: [
-                                Column(
-                                  children: [
-                                    _buildMobileStatusBar(primaryDark),
-                                    if (appBarWidget != null)
-                                      _buildCanvasNode(
-                                        project,
-                                        appBarWidget,
-                                        page,
-                                      ),
-                                    Expanded(
-                                      child: Container(
-                                        width: double.infinity,
-                                        color: Colors.white,
-                                        child: bodyWidgets.isEmpty
-                                            ? _buildDefaultPreview(
-                                                active: phoneDropActive,
-                                              )
-                                            : _buildRootWidgetList(
-                                                project,
-                                                page,
-                                                bodyWidgets,
-                                              ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (_isWidgetDragging)
-                                  Positioned(
-                                    left: 8,
-                                    right: 8,
-                                    top: 6,
-                                    child: DragTarget<_CanvasDragPayload>(
-                                      onWillAcceptWithDetails: (details) =>
-                                          details.data.widgetId != null,
-                                      onAcceptWithDetails: (details) {
-                                        final widgetId = details.data.widgetId;
-                                        if (widgetId == null) return;
-                                        _removeWidgetById(
-                                          project,
-                                          ref.read(
-                                            currentProjectIndexProvider,
-                                          )!,
-                                          ref.read(currentPageIndexProvider)!,
-                                          page,
-                                          widgetId,
-                                        );
-                                        setState(() {
-                                          _isWidgetDragging = false;
-                                          _selectedWidgetId = null;
-                                        });
-                                      },
-                                      builder: (context, candidate, _) {
-                                        final active = candidate.isNotEmpty;
-                                        return Container(
-                                          height: 28,
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(
-                                            color: active
-                                                ? Colors.red.shade700
-                                                : Colors.red.shade400,
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'Delete',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                if (fabWidget != null)
-                                  Positioned(
-                                    right: 10,
-                                    bottom: 12,
-                                    child: _buildCanvasNode(
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipRect(
+                          child: Stack(
+                            children: [
+                              Column(
+                                children: [
+                                  _buildMobileStatusBar(primaryDark),
+                                  if (appBarWidget != null)
+                                    _buildCanvasNode(
                                       project,
-                                      fabWidget,
+                                      appBarWidget,
                                       page,
                                     ),
+                                  Expanded(
+                                    child: Container(
+                                      width: double.infinity,
+                                      color: Colors.white,
+                                      child: bodyWidgets.isEmpty
+                                          ? _buildDefaultPreview(
+                                              active: phoneDropActive,
+                                            )
+                                          : _buildRootWidgetList(
+                                              project,
+                                              page,
+                                              bodyWidgets,
+                                            ),
+                                    ),
                                   ),
-                              ],
-                            ),
+                                ],
+                              ),
+                              if (_isWidgetDragging)
+                                Positioned(
+                                  left: 8,
+                                  right: 8,
+                                  top: 6,
+                                  child: DragTarget<_CanvasDragPayload>(
+                                    onWillAcceptWithDetails: (details) =>
+                                        details.data.widgetId != null,
+                                    onAcceptWithDetails: (details) {
+                                      final widgetId = details.data.widgetId;
+                                      if (widgetId == null) return;
+                                      _removeWidgetById(
+                                        project,
+                                        ref.read(currentProjectIndexProvider)!,
+                                        ref.read(currentPageIndexProvider)!,
+                                        page,
+                                        widgetId,
+                                      );
+                                      setState(() {
+                                        _isWidgetDragging = false;
+                                        _selectedWidgetId = null;
+                                      });
+                                    },
+                                    builder: (context, candidate, _) {
+                                      final active = candidate.isNotEmpty;
+                                      return Container(
+                                        height: 28,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: active
+                                              ? Colors.red.shade700
+                                              : Colors.red.shade400,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Delete',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              if (fabWidget != null)
+                                Positioned(
+                                  right: 10,
+                                  bottom: 12,
+                                  child: _buildCanvasNode(
+                                    project,
+                                    fabWidget,
+                                    page,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 8),
@@ -422,20 +422,28 @@ class _UiTabState extends ConsumerState<UiTab> {
     );
   }
 
+  // Holat satrini biroz kattalashtirdik
   Widget _buildMobileStatusBar(Color color) {
     return Container(
-      height: 22,
+      height: 26, // Avval 22 edi
       color: color,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: const Row(
         children: [
-          Text('22:50', style: TextStyle(color: Colors.white, fontSize: 10)),
+          Text(
+            '12:45',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           Spacer(),
-          Icon(Icons.signal_cellular_alt, size: 12, color: Colors.white),
-          SizedBox(width: 4),
-          Icon(Icons.wifi, size: 12, color: Colors.white),
-          SizedBox(width: 4),
-          Icon(Icons.battery_std, size: 12, color: Colors.white),
+          Icon(Icons.signal_cellular_alt, size: 14, color: Colors.white),
+          SizedBox(width: 6),
+          Icon(Icons.wifi, size: 14, color: Colors.white),
+          SizedBox(width: 6),
+          Icon(Icons.battery_full, size: 14, color: Colors.white),
         ],
       ),
     );
@@ -784,18 +792,19 @@ class _UiTabState extends ConsumerState<UiTab> {
         final color = _parseColor(
           widget.properties['backgroundColor']?.toString(),
         );
+        // AppBar balandligini 38 dan 56 ga oshirdik (Standard balandlik)
         body = Container(
-          height: 38,
+          height: 56,
           width: double.infinity,
           color: color,
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             title,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontSize: 18, // Shrifni kattalashtirdik
+              fontWeight: FontWeight.bold,
             ),
           ),
         );
@@ -804,7 +813,8 @@ class _UiTabState extends ConsumerState<UiTab> {
         body = Text(
           widget.text.isEmpty ? 'TextView' : widget.text,
           style: TextStyle(
-            fontSize: (widget.fontSize * 0.88).clamp(10.0, 14.0),
+            // Matnni kattalashtirish uchun koeffitsientni oshirdik
+            fontSize: (widget.fontSize * 1.1).clamp(12.0, 24.0),
             color: Colors.black87,
           ),
         );
@@ -815,18 +825,19 @@ class _UiTabState extends ConsumerState<UiTab> {
           widget.properties['backgroundColor']?.toString(),
           fallback: Colors.blue.shade600,
         );
+        // Tugma o'lchamlarini va shrifini kattalashtirdik
         body = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
             color: enabled ? buttonColor : buttonColor.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             widget.text.isEmpty ? 'Button' : widget.text,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 14,
               color: Colors.white,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.bold,
             ),
           ),
         );
@@ -1212,15 +1223,23 @@ class _UiTabState extends ConsumerState<UiTab> {
         );
         break;
       case 'fab':
+        // FAB o'lchamini kattalashtirdik
         body = Container(
-          width: 42,
-          height: 42,
+          width: 56,
+          height: 56,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.blue.shade600,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           alignment: Alignment.center,
-          child: const Icon(Icons.add, size: 18, color: Colors.white),
+          child: const Icon(Icons.add, size: 28, color: Colors.white),
         );
         break;
       default:
@@ -1309,42 +1328,47 @@ class _UiTabState extends ConsumerState<UiTab> {
       bottom: 0,
       child: Material(
         color: Colors.transparent,
-        elevation: 16,
+        elevation: 12,
         child: Container(
-          height: _propertySheetHeight,
           decoration: BoxDecoration(
-            color: const Color(0xFFE8EFF7),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            border: Border.all(color: Colors.grey.shade300),
+            color: const Color(0xFFE8EFF7), // Skrinshottagi och havorang fon
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 15,
+                offset: const Offset(0, -5),
+              ),
+            ],
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // --- HEADER PART ---
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 8, 0),
+                padding: const EdgeInsets.fromLTRB(16, 12, 10, 4),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.widgets,
-                      color: Colors.blueGrey.shade700,
+                    const Icon(
+                      Icons.settings_overscan,
                       size: 18,
+                      color: Colors.black87,
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        selected.id,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    Text(
+                      selected.id,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: () => setState(() => _selectedWidgetId = null),
-                      icon: const Icon(Icons.close, size: 14),
-                      label: const Text('Yopish'),
-                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_drop_down, size: 20),
+                    const Spacer(),
                     IconButton(
-                      tooltip: 'Delete',
+                      visualDensity: VisualDensity.compact,
                       onPressed: () {
                         _removeWidgetById(
                           project,
@@ -1355,55 +1379,102 @@ class _UiTabState extends ConsumerState<UiTab> {
                         );
                         setState(() => _selectedWidgetId = null);
                       },
-                      icon: const Icon(Icons.delete_outline),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 22,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setState(() => _selectedWidgetId = null),
+                      icon: const Icon(
+                        Icons.save_outlined,
+                        size: 22,
+                        color: Colors.black54,
+                      ),
                     ),
                   ],
                 ),
               ),
+              // --- TABS PART ---
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
-                    ChoiceChip(
-                      label: const Text('Basic'),
-                      selected: _sheetTab == _PropertySheetTab.basic,
-                      onSelected: (_) {
+                    _buildTabBadge(
+                      'Basic',
+                      _sheetTab == _PropertySheetTab.basic,
+                      () {
                         setState(() => _sheetTab = _PropertySheetTab.basic);
                       },
                     ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('Event'),
-                      selected: _sheetTab == _PropertySheetTab.event,
-                      onSelected: (_) {
+                    const SizedBox(width: 10),
+                    _buildTabBadge('Recent', false, () {}),
+                    const SizedBox(width: 10),
+                    _buildTabBadge(
+                      'Event',
+                      _sheetTab == _PropertySheetTab.event,
+                      () {
                         setState(() => _sheetTab = _PropertySheetTab.event);
                       },
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                  child: _sheetTab == _PropertySheetTab.basic
-                      ? _buildBasicProperties(
-                          project,
-                          projectIndex,
-                          pageIndex,
-                          page,
-                          selected,
-                        )
-                      : _buildEventProperties(
-                          project,
-                          projectIndex,
-                          pageIndex,
-                          page,
-                          selected,
-                        ),
+              // --- CONTENT PART ---
+              Flexible(
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                  child: SingleChildScrollView(
+                    child: _sheetTab == _PropertySheetTab.basic
+                        ? _buildBasicProperties(
+                            project,
+                            projectIndex,
+                            pageIndex,
+                            page,
+                            selected,
+                          )
+                        : _buildEventProperties(
+                            project,
+                            projectIndex,
+                            pageIndex,
+                            page,
+                            selected,
+                          ),
+                  ),
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Skrinshottagi kabi ko'k burchakli "Badge/Chip" tablar
+  Widget _buildTabBadge(String label, bool isSelected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFD3E4FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.blue.shade800 : Colors.blueGrey,
           ),
         ),
       ),
@@ -1874,15 +1945,17 @@ class _UiTabState extends ConsumerState<UiTab> {
             style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
           )
         else
-          SizedBox(
-            height: 94,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: cards.length,
-              itemBuilder: (context, index) =>
-                  SizedBox(width: 170, child: cards[index]),
-              separatorBuilder: (context, index) => const SizedBox(width: 8),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 0.9,
             ),
+            itemCount: cards.length,
+            itemBuilder: (context, index) => cards[index],
           ),
       ],
     );
@@ -1895,45 +1968,33 @@ class _UiTabState extends ConsumerState<UiTab> {
     Future<void> Function()? onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap == null
-          ? null
-          : () async {
-              await onTap();
-            },
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: onTap == null ? const Color(0xFFDDE3ED) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade300),
+          color: const Color(0xFFDDE7F0),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.6),
+            width: 1.5,
+          ),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Icon(icon, size: 16, color: Colors.blueGrey.shade700),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
+            Icon(icon, size: 24, color: const Color(0xFF333333)),
+            const SizedBox(height: 8),
             Text(
-              value.isEmpty ? '(bo\'sh)' : value,
-              maxLines: 2,
+              label,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF444444),
+              ),
             ),
           ],
         ),

@@ -143,8 +143,31 @@ class EditorScreen extends ConsumerWidget {
               ),
             ],
           ),
-          body: TabBarView(children: tabViews),
-          bottomNavigationBar: _buildPageDock(context, ref, project, pageIndex),
+          body: Stack(
+            children: [
+              // 1. PageDock (Pastki panel) - Har doim pastda turadi
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  color: baseTheme.scaffoldBackgroundColor, // Dock orqa foni
+                  child: _buildPageDock(context, ref, project, pageIndex),
+                ),
+              ),
+              // 2. TabBarView (Asosiy kontent)
+              // Widget tanlanganda dock ustiga silliq yopilishi uchun AnimatedPadding ishlatamiz
+              AnimatedPadding(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                padding: EdgeInsets.only(
+                  // 80 - dock va safe area uchun taxminiy balandlik
+                  bottom: ref.watch(selectedWidgetIdProvider) == null ? 80 : 0,
+                ),
+                child: TabBarView(children: tabViews),
+              ),
+            ],
+          ),
         ),
       ),
     );
