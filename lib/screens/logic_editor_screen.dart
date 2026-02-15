@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/app_models.dart';
+import '../models/blocks.dart';
 import '../utils/dart_code_generator.dart';
+
 import '../widgets/blockly_block_editor.dart';
-import '../widgets/compact_block_editor.dart';
 
 class LogicEditorScreen extends StatefulWidget {
   final String title;
@@ -43,6 +44,17 @@ class _LogicEditorScreenState extends State<LogicEditorScreen> {
     _draftBlocks = widget.initialBlocks
         .map((item) => BlockModel.fromJson(item.toJson()))
         .toList();
+
+    // Agar bloklar bo'sh bo'lsa, Hat blokini qo'shish
+    if (_draftBlocks.isEmpty) {
+      _draftBlocks.add(
+        BlockDefinitions.createBlock(
+          'event_hat',
+          id: 'hat_${DateTime.now().millisecondsSinceEpoch}',
+        ),
+      );
+    }
+
     _initialSnapshot = _snapshot(_draftBlocks);
   }
 
@@ -63,30 +75,55 @@ class _LogicEditorScreenState extends State<LogicEditorScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
         appBar: AppBar(
-          title: Text(widget.title),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF1A1C1E),
+          centerTitle: true,
+          title: Text(
+            widget.title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.5,
+            ),
+          ),
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          ),
           actions: [
             IconButton(
               onPressed: _showCodePreview,
-              icon: const Icon(Icons.code),
+              icon: const Icon(Icons.code_rounded),
               tooltip: 'Blok kodi',
             ),
-            IconButton(
-              onPressed: () {
-                setState(() => _savedFromAction = true);
-                _saveDraft();
-                Navigator.of(context).pop();
-              },
-              icon: const Icon(Icons.check),
-              tooltip: 'Saqlash',
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton(
+                onPressed: () {
+                  setState(() => _savedFromAction = true);
+                  _saveDraft();
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(
+                  Icons.check_circle_outline_rounded,
+                  size: 26,
+                  color: Colors.blue,
+                ),
+                tooltip: 'Saqlash',
+              ),
             ),
           ],
         ),
+
         body: BlocklyBlockEditor(
           key: ValueKey('${widget.page.id}_${widget.eventLabel}'),
           eventLabel: widget.eventLabel,
           initialBlocks: _draftBlocks,
           scope: widget.scope,
+
           pages: widget.project.pages,
           widgetIds: widgetIds,
           onChanged: (blocks) {

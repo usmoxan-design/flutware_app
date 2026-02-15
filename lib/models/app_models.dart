@@ -14,6 +14,8 @@ enum BlockCategory {
   };
 }
 
+enum BlockEditorScope { onCreate, callback }
+
 BlockCategory blockCategoryFromString(String raw) {
   for (final category in BlockCategory.values) {
     if (category.name == raw) {

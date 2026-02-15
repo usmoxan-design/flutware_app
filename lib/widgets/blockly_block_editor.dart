@@ -1,12 +1,10 @@
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blockly/flutter_blockly.dart';
 
 import '../models/app_models.dart';
 import '../utils/blockly_bridge.dart';
-import 'compact_block_editor.dart';
 
 class BlocklyBlockEditor extends StatefulWidget {
   final String eventLabel;
@@ -61,34 +59,44 @@ class _BlocklyBlockEditorState extends State<BlocklyBlockEditor> {
   @override
   Widget build(BuildContext context) {
     if (!_isBlocklySupported) {
-      return CompactBlockEditor(
-        key: ValueKey('${widget.eventLabel}_${widget.scope.name}_fallback'),
-        eventLabel: widget.eventLabel,
-        initialBlocks: widget.initialBlocks,
-        onChanged: widget.onChanged,
-        widgetIds: widget.widgetIds,
-        pages: widget.pages,
-        scope: widget.scope,
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.extension_off_outlined,
+              size: 48,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Blockly editor is not supported on this platform.',
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Target platform: ${defaultTargetPlatform.name}',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
       );
     }
 
     return Stack(
       children: [
-        Container(
-          color: const Color(0xFFF5F7FA),
-          child: BlocklyEditorWidget(
-            key: ValueKey('${widget.eventLabel}_${widget.scope.name}_blockly'),
-            workspaceConfiguration: _workspaceConfiguration,
-            initial: _initialState,
-            script: _script,
-            onChange: _onBlocklyChange,
-            onError: (error) {
-              final text = error?.toString() ?? 'Unknown Blockly error';
-              if (!mounted) return;
-              setState(() => _runtimeError = text);
-              debugPrint('Blockly error: $text');
-            },
-          ),
+        BlocklyEditorWidget(
+          key: ValueKey('${widget.eventLabel}_${widget.scope.name}_blockly'),
+          workspaceConfiguration: _workspaceConfiguration,
+          initial: _initialState,
+          script: _script,
+          onChange: _onBlocklyChange,
+          onError: (error) {
+            final text = error?.toString() ?? 'Unknown Blockly error';
+            if (!mounted) return;
+            setState(() => _runtimeError = text);
+            debugPrint('Blockly error: $text');
+          },
         ),
         if (_runtimeError != null)
           Positioned(
@@ -127,7 +135,7 @@ class _BlocklyBlockEditorState extends State<BlocklyBlockEditor> {
       'renderer': 'zelos',
       'trashcan': true,
       'scrollbars': {'horizontal': true, 'vertical': true},
-      'grid': {'spacing': 20, 'length': 3, 'colour': '#D5DEE8', 'snap': true},
+      'grid': {'spacing': 24, 'length': 2, 'colour': '#E0E4E9', 'snap': true},
       'move': {
         'drag': true,
         'wheel': true,
@@ -136,9 +144,9 @@ class _BlocklyBlockEditorState extends State<BlocklyBlockEditor> {
       'zoom': {
         'controls': true,
         'wheel': true,
-        'startScale': 0.9,
-        'maxScale': 1.6,
-        'minScale': 0.45,
+        'startScale': 0.7,
+        'maxScale': 1.4,
+        'minScale': 0.35,
         'scaleSpeed': 1.1,
       },
     });

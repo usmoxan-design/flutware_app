@@ -1,99 +1,15 @@
 import 'dart:convert';
-
 import '../models/app_models.dart';
-import '../models/block_definitions.dart';
+import '../models/blocks.dart';
 
 class BlocklyBridge {
-  static const Set<String> _statementTypes = {
-    'set_variable',
-    'if',
-    'if_else',
-    'toast',
-    'snackbar',
-    'set_enabled',
-    'request_focus',
-    'navigate_push',
-    'navigate_pop',
-  };
+  static bool isStatementType(String type) =>
+      BlockDefinitions.isStatementType(type);
+  static bool isValueType(String type) => BlockDefinitions.isValueType(type);
 
-  static const Set<String> _valueTypes = {
-    'compare_eq',
-    'compare_ne',
-    'compare_lt',
-    'compare_lte',
-    'compare_gt',
-    'compare_gte',
-    'logic_and',
-    'logic_or',
-    'logic_not',
-    'bool_true',
-    'bool_false',
-    'string_is_empty',
-    'string_not_empty',
-  };
+  static Set<String> get _supportedTypes => BlockDefinitions.supportedTypes;
 
-  static Set<String> get _supportedTypes => {
-    ..._statementTypes,
-    ..._valueTypes,
-  };
-
-  static Map<String, dynamic> toolboxJson() {
-    return {
-      'kind': 'categoryToolbox',
-      'contents': [
-        {
-          'kind': 'category',
-          'name': 'Variable',
-          'colour': '#FF8A65',
-          'contents': [
-            {'kind': 'block', 'type': 'set_variable'},
-          ],
-        },
-        {
-          'kind': 'category',
-          'name': 'Control',
-          'colour': '#F4B400',
-          'contents': [
-            {'kind': 'block', 'type': 'if'},
-            {'kind': 'block', 'type': 'if_else'},
-          ],
-        },
-        {
-          'kind': 'category',
-          'name': 'Operator',
-          'colour': '#2E7D32',
-          'contents': [
-            {'kind': 'block', 'type': 'compare_eq'},
-            {'kind': 'block', 'type': 'compare_ne'},
-            {'kind': 'block', 'type': 'compare_lt'},
-            {'kind': 'block', 'type': 'compare_lte'},
-            {'kind': 'block', 'type': 'compare_gt'},
-            {'kind': 'block', 'type': 'compare_gte'},
-            {'kind': 'block', 'type': 'logic_and'},
-            {'kind': 'block', 'type': 'logic_or'},
-            {'kind': 'block', 'type': 'logic_not'},
-            {'kind': 'block', 'type': 'bool_true'},
-            {'kind': 'block', 'type': 'bool_false'},
-            {'kind': 'block', 'type': 'string_is_empty'},
-            {'kind': 'block', 'type': 'string_not_empty'},
-          ],
-        },
-        {
-          'kind': 'category',
-          'name': 'View',
-          'colour': '#1E88E5',
-          'contents': [
-            {'kind': 'block', 'type': 'toast'},
-            {'kind': 'block', 'type': 'snackbar'},
-            {'kind': 'block', 'type': 'set_enabled'},
-            {'kind': 'block', 'type': 'request_focus'},
-            {'kind': 'block', 'type': 'navigate_push'},
-            {'kind': 'block', 'type': 'navigate_pop'},
-          ],
-        },
-      ],
-    };
-  }
+  static Map<String, dynamic> toolboxJson() => BlockDefinitions.toolboxJson();
 
   static String buildCustomScript({
     required List<String> widgetIds,
@@ -103,18 +19,47 @@ class BlocklyBridge {
         .trim();
     final defaultPageId = (pages.isEmpty ? '' : pages.first.id).trim();
     final blocksJson = jsonEncode(
-      _customBlockJsonArray(
+      BlockDefinitions.customBlockJsonArray(
         defaultWidgetId: defaultWidgetId.isEmpty ? 'button1' : defaultWidgetId,
         defaultPageId: defaultPageId,
       ),
     );
-    final statementTypesJson = jsonEncode(_statementTypes.toList());
-    final valueTypesJson = jsonEncode(_valueTypes.toList());
+    final statementTypesJson = jsonEncode(
+      BlockDefinitions.statementTypes.toList(),
+    );
+    final valueTypesJson = jsonEncode(BlockDefinitions.valueTypes.toList());
 
     return '''
 <script>
 (() => {
   if (typeof Blockly === 'undefined') return;
+
+  // Define Modern Theme in JS
+  const modernTheme = Blockly.Theme.defineTheme('modern', {
+    'base': Blockly.Themes.Classic,
+    'categoryStyles': {
+      'variable_category': { 'colour': '#FF8A65' },
+      'control_category': { 'colour': '#F4B400' },
+      'operator_category': { 'colour': '#2E7D32' },
+      'view_category': { 'colour': '#1E88E5' },
+    },
+    'blockStyles': {
+      'variable_blocks': { 'colourPrimary': '#FF8A65' },
+      'control_blocks': { 'colourPrimary': '#F4B400' },
+      'operator_blocks': { 'colourPrimary': '#2E7D32' },
+      'view_blocks': { 'colourPrimary': '#1E88E5' },
+    },
+    'componentStyles': {
+      'workspaceBackgroundColour': '#F5F7FA',
+      'toolboxBackgroundColour': '#FFFFFF',
+      'toolboxForegroundColour': '#3C4043',
+      'flyoutBackgroundColour': '#FFFFFF',
+      'flyoutForegroundColour': '#3C4043',
+      'scrollbarColour': '#D1D5DB',
+      'insertionMarkerColour': '#000000',
+      'insertionMarkerOpacity': 0.1,
+    }
+  });
 
   const customBlocks = $blocksJson;
   if (Blockly.common && Blockly.common.defineBlocksWithJsonArray) {
@@ -150,6 +95,130 @@ class BlocklyBridge {
   registerGenerator(window.lua && window.lua.luaGenerator);
   registerGenerator(window.php && window.php.phpGenerator);
   registerGenerator(window.python && window.python.pythonGenerator);
+
+  // Clean Premium Sidebar CSS
+  const style = document.createElement('style');
+  style.textContent = `
+    .blocklyToolboxDiv {
+      background-color: rgba(255, 255, 255, 0.98) !important;
+      backdrop-filter: blur(10px);
+      border-right: 1px solid #E0E4E9 !important;
+      padding-top: 50px !important;
+      width: 120px !important;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      z-index: 100 !important;
+    }
+    .blocklyToolboxDiv.collapsed {
+      transform: translateX(-120px) !important;
+    }
+    .blocklyTreeLabel {
+      font-family: 'Inter', sans-serif !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      color: #3C4043 !important;
+      padding: 8px 12px !important;
+    }
+    .blocklyTreeRow {
+      height: 48px !important;
+      margin: 4px 8px !important;
+      border-radius: 12px !important;
+      line-height: 48px !important;
+      transition: all 0.2s ease !important;
+    }
+    /* Toggle Button Styling */
+    #toolbox-toggle {
+      position: fixed;
+      left: 12px;
+      top: 12px;
+      width: 36px;
+      height: 36px;
+      background: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 1001;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    #toolbox-toggle svg { width: 20px; height: 20px; fill: #5F6368; }
+    
+    .blocklyTreeRow.blocklyTreeSelected {
+      background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+    .blocklyTreeIcon {
+      display: none !important;
+    }
+    .blocklyFlyout {
+      transition: transform 0.3s ease !important;
+    }
+    .blocklyFlyoutBackground {
+      fill: #FFFFFF !important;
+      fill-opacity: 0.95 !important;
+    }
+
+    .blocklyScrollbarHandle {
+      fill: #D1D5DB !important;
+      fill-opacity: 0.6 !important;
+      rx: 4px !important;
+    }
+    .blocklyMainBackground {
+      stroke: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Create Toggle Button
+  const toggle = document.createElement('div');
+  toggle.id = 'toolbox-toggle';
+  toggle.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>';
+  document.body.appendChild(toggle);
+
+  toggle.onclick = () => {
+    const toolbox = document.querySelector('.blocklyToolboxDiv');
+    if (toolbox) {
+      toolbox.classList.toggle('collapsed');
+      const isCollapsed = toolbox.classList.contains('collapsed');
+      toggle.style.left = isCollapsed ? '12px' : '132px';
+      toggle.innerHTML = isCollapsed 
+        ? '<svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>'
+        : '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+      
+      // Hide flyout when collapsed
+      if (isCollapsed) {
+        const workspace = Blockly.getMainWorkspace();
+        if (workspace && workspace.getToolbox()) {
+          workspace.getToolbox().clearSelection();
+        }
+      }
+    }
+  };
+
+  // Apply Theme to Workspace
+  const applyTheme = () => {
+    const workspace = Blockly.getMainWorkspace();
+    if (workspace) {
+      workspace.setTheme(modernTheme);
+      // Initial State: Collapsed
+      const toolbox = document.querySelector('.blocklyToolboxDiv');
+      if (toolbox) toolbox.classList.add('collapsed');
+
+      // Auto-close on drag from toolbox
+      workspace.addChangeListener((e) => {
+        if (e.type === Blockly.Events.BLOCK_CREATE && !e.isForeign) {
+          const toolbox = document.querySelector('.blocklyToolboxDiv');
+          if (toolbox && !toolbox.classList.contains('collapsed')) {
+            if (typeof toggle !== 'undefined') toggle.click();
+          }
+        }
+      });
+
+      clearInterval(themeInterval);
+    }
+  };
+  const themeInterval = setInterval(applyTheme, 100);
+  setTimeout(() => clearInterval(themeInterval), 5000);
 })();
 </script>
 ''';
@@ -189,238 +258,10 @@ class BlocklyBridge {
     return out;
   }
 
-  static List<Map<String, dynamic>> _customBlockJsonArray({
-    required String defaultWidgetId,
-    required String defaultPageId,
-  }) {
-    return [
-      {
-        'type': 'set_variable',
-        'message0': 'set variable name %1 value %2',
-        'args0': [
-          {'type': 'field_input', 'name': 'NAME', 'text': 'value'},
-          {'type': 'field_input', 'name': 'VALUE', 'text': '0'},
-        ],
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 20,
-      },
-      {
-        'type': 'if',
-        'message0': 'if %1',
-        'args0': [
-          {'type': 'input_value', 'name': 'CONDITION', 'check': 'Boolean'},
-        ],
-        'message1': 'then %1',
-        'args1': [
-          {'type': 'input_statement', 'name': 'THEN'},
-        ],
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 45,
-      },
-      {
-        'type': 'if_else',
-        'message0': 'if %1',
-        'args0': [
-          {'type': 'input_value', 'name': 'CONDITION', 'check': 'Boolean'},
-        ],
-        'message1': 'then %1',
-        'args1': [
-          {'type': 'input_statement', 'name': 'THEN'},
-        ],
-        'message2': 'else %1',
-        'args2': [
-          {'type': 'input_statement', 'name': 'ELSE'},
-        ],
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 45,
-      },
-      {
-        'type': 'compare_eq',
-        'message0': '%1 == %2',
-        'args0': [
-          {'type': 'field_input', 'name': 'LEFT', 'text': '1'},
-          {'type': 'field_input', 'name': 'RIGHT', 'text': '1'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'compare_ne',
-        'message0': '%1 != %2',
-        'args0': [
-          {'type': 'field_input', 'name': 'LEFT', 'text': '1'},
-          {'type': 'field_input', 'name': 'RIGHT', 'text': '2'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'compare_lt',
-        'message0': '%1 < %2',
-        'args0': [
-          {'type': 'field_input', 'name': 'LEFT', 'text': '1'},
-          {'type': 'field_input', 'name': 'RIGHT', 'text': '2'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'compare_lte',
-        'message0': '%1 <= %2',
-        'args0': [
-          {'type': 'field_input', 'name': 'LEFT', 'text': '1'},
-          {'type': 'field_input', 'name': 'RIGHT', 'text': '2'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'compare_gt',
-        'message0': '%1 > %2',
-        'args0': [
-          {'type': 'field_input', 'name': 'LEFT', 'text': '2'},
-          {'type': 'field_input', 'name': 'RIGHT', 'text': '1'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'compare_gte',
-        'message0': '%1 >= %2',
-        'args0': [
-          {'type': 'field_input', 'name': 'LEFT', 'text': '2'},
-          {'type': 'field_input', 'name': 'RIGHT', 'text': '1'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'logic_and',
-        'message0': '%1 and %2',
-        'args0': [
-          {'type': 'input_value', 'name': 'LEFT', 'check': 'Boolean'},
-          {'type': 'input_value', 'name': 'RIGHT', 'check': 'Boolean'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'logic_or',
-        'message0': '%1 or %2',
-        'args0': [
-          {'type': 'input_value', 'name': 'LEFT', 'check': 'Boolean'},
-          {'type': 'input_value', 'name': 'RIGHT', 'check': 'Boolean'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'logic_not',
-        'message0': 'not %1',
-        'args0': [
-          {'type': 'input_value', 'name': 'VALUE', 'check': 'Boolean'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'bool_true',
-        'message0': 'true',
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'bool_false',
-        'message0': 'false',
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'string_is_empty',
-        'message0': 'is empty %1',
-        'args0': [
-          {'type': 'field_input', 'name': 'VALUE', 'text': ''},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'string_not_empty',
-        'message0': 'not empty %1',
-        'args0': [
-          {'type': 'field_input', 'name': 'VALUE', 'text': 'abc'},
-        ],
-        'output': 'Boolean',
-        'colour': 120,
-      },
-      {
-        'type': 'toast',
-        'message0': 'Toast %1',
-        'args0': [
-          {'type': 'field_input', 'name': 'MESSAGE', 'text': 'Hello'},
-        ],
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 210,
-      },
-      {
-        'type': 'snackbar',
-        'message0': 'Snackbar %1',
-        'args0': [
-          {'type': 'field_input', 'name': 'MESSAGE', 'text': 'Saved'},
-        ],
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 210,
-      },
-      {
-        'type': 'set_enabled',
-        'message0': 'setEnabled widget %1 enabled %2',
-        'args0': [
-          {'type': 'field_input', 'name': 'WIDGET', 'text': defaultWidgetId},
-          {'type': 'input_value', 'name': 'ENABLED', 'check': 'Boolean'},
-        ],
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 210,
-      },
-      {
-        'type': 'request_focus',
-        'message0': 'requestFocus widget %1',
-        'args0': [
-          {'type': 'field_input', 'name': 'WIDGET', 'text': defaultWidgetId},
-        ],
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 210,
-      },
-      {
-        'type': 'navigate_push',
-        'message0': 'Navigator.push target %1',
-        'args0': [
-          {'type': 'field_input', 'name': 'TARGET', 'text': defaultPageId},
-        ],
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 210,
-      },
-      {
-        'type': 'navigate_pop',
-        'message0': 'Navigator.pop',
-        'previousStatement': null,
-        'nextStatement': null,
-        'colour': 210,
-      },
-    ];
-  }
-
   static Map<String, dynamic>? _statementListToChain(List<BlockModel> blocks) {
     final statements = blocks
         .where((item) => _supportedTypes.contains(item.type))
-        .where((item) => BlockRegistry.isStatementType(item.type))
+        .where((item) => isStatementType(item.type))
         .toList();
     if (statements.isEmpty) {
       return null;
@@ -440,6 +281,12 @@ class BlocklyBridge {
     final out = <String, dynamic>{'type': block.type, 'id': block.id};
 
     switch (block.type) {
+      case 'event_hat':
+        out['fields'] = {
+          'NAME': _stringInput(block, 'name', fallback: 'Harakat'),
+        };
+        break;
+
       case 'set_variable':
         out['fields'] = {
           'NAME': _stringInput(block, 'name', fallback: 'value'),
@@ -451,7 +298,7 @@ class BlocklyBridge {
         final inputs = <String, dynamic>{};
         final condition =
             (block.slots['condition'] ?? const <BlockModel>[]).firstOrNull;
-        if (condition != null && _valueTypes.contains(condition.type)) {
+        if (condition != null && isValueType(condition.type)) {
           inputs['CONDITION'] = {'block': _blockToJson(condition)};
         }
         final thenChain = _statementListToChain(
@@ -552,7 +399,7 @@ class BlocklyBridge {
     Map<String, dynamic>? current = root;
     while (current != null) {
       final parsed = _parseBlock(current);
-      if (parsed != null && _statementTypes.contains(parsed.type)) {
+      if (parsed != null && isStatementType(parsed.type)) {
         out.add(parsed);
       }
       current = _nextBlock(current);
@@ -566,13 +413,23 @@ class BlocklyBridge {
       return null;
     }
 
-    final base = BlockRegistry.create(type, id: _blockId(block, type));
+    final base = BlockDefinitions.createBlock(type, id: _blockId(block, type));
     final nextInputs = <String, BlockInputModel>{...base.inputs};
     final nextSlots = <String, List<BlockModel>>{
       for (final entry in base.slots.entries) entry.key: [...entry.value],
     };
 
     switch (type) {
+      case 'event_hat':
+        nextInputs['name'] = BlockInputModel(
+          value: _fieldText(
+            block,
+            'NAME',
+            fallback: _defaultInput(base, 'name', fallback: 'Harakat'),
+          ),
+        );
+        break;
+
       case 'set_variable':
         nextInputs['name'] = BlockInputModel(
           value: _fieldText(
@@ -718,7 +575,7 @@ class BlocklyBridge {
     required bool fallback,
   }) {
     final nested = input?.block;
-    if (nested != null && _valueTypes.contains(nested.type)) {
+    if (nested != null && isValueType(nested.type)) {
       return {'block': _blockToJson(nested)};
     }
 
@@ -755,7 +612,7 @@ class BlocklyBridge {
       return null;
     }
     final parsed = _parseBlock(nested);
-    if (parsed == null || !_valueTypes.contains(parsed.type)) {
+    if (parsed == null || !isValueType(parsed.type)) {
       return null;
     }
     return parsed;
@@ -775,6 +632,14 @@ class BlocklyBridge {
     return _asMap(next?['block']);
   }
 
+  static String _blockId(Map<String, dynamic> block, String type) {
+    final id = block['id']?.toString();
+    if (id != null && id.trim().isNotEmpty) {
+      return id;
+    }
+    return '${type}_${DateTime.now().microsecondsSinceEpoch}';
+  }
+
   static String _stringInput(
     BlockModel block,
     String key, {
@@ -785,36 +650,6 @@ class BlocklyBridge {
       return fallback;
     }
     return value.toString();
-  }
-
-  static bool _boolInput(
-    BlockModel block,
-    String key, {
-    required bool fallback,
-  }) {
-    final value = block.inputs[key]?.value;
-    return _toBool(value, fallback: fallback);
-  }
-
-  static String _fieldText(
-    Map<String, dynamic> block,
-    String key, {
-    required String fallback,
-  }) {
-    final fields = _asMap(block['fields']);
-    final value = fields?[key];
-    if (value == null) {
-      return fallback;
-    }
-    return value.toString();
-  }
-
-  static String _blockId(Map<String, dynamic> block, String type) {
-    final id = block['id']?.toString();
-    if (id != null && id.trim().isNotEmpty) {
-      return id;
-    }
-    return BlockRegistry.create(type).id;
   }
 
   static String _defaultInput(
@@ -837,6 +672,15 @@ class BlocklyBridge {
     return _toBool(block.inputs[key]?.value, fallback: fallback);
   }
 
+  static bool _boolInput(
+    BlockModel block,
+    String key, {
+    required bool fallback,
+  }) {
+    final value = block.inputs[key]?.value;
+    return _toBool(value, fallback: fallback);
+  }
+
   static bool _toBool(dynamic raw, {required bool fallback}) {
     if (raw is bool) return raw;
     if (raw is num) return raw != 0;
@@ -848,6 +692,19 @@ class BlocklyBridge {
       return true;
     }
     return fallback;
+  }
+
+  static String _fieldText(
+    Map<String, dynamic> block,
+    String key, {
+    required String fallback,
+  }) {
+    final fields = _asMap(block['fields']);
+    final value = fields?[key];
+    if (value == null) {
+      return fallback;
+    }
+    return value.toString();
   }
 
   static double _numFrom(dynamic raw) {

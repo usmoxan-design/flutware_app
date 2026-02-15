@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_models.dart';
 import '../../providers/project_provider.dart';
-import '../../widgets/compact_block_editor.dart';
 import '../logic_editor_screen.dart';
 
 class UiTab extends ConsumerStatefulWidget {
