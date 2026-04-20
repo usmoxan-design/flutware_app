@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'pubspec_model.dart';
+
+export 'pubspec_model.dart';
 
 enum BlockCategory {
   variable,
@@ -760,6 +763,7 @@ class ProjectData {
   final String colorPrimaryDark;
   final String colorAccent;
   final List<PageData> pages;
+  final PubspecConfig? pubspec;
 
   ProjectData({
     required this.appName,
@@ -771,6 +775,7 @@ class ProjectData {
     this.colorPrimaryDark = '0xFF1976D2',
     this.colorAccent = '0xFFFF4081',
     this.pages = const [],
+    this.pubspec,
   });
 
   Map<String, dynamic> toJson() => {
@@ -783,6 +788,7 @@ class ProjectData {
     'colorPrimaryDark': colorPrimaryDark,
     'colorAccent': colorAccent,
     'pages': pages.map((e) => e.toJson()).toList(),
+    if (pubspec != null) 'pubspec': pubspec!.toJson(),
   };
 
   factory ProjectData.fromJson(Map<String, dynamic> json) {
@@ -798,6 +804,9 @@ class ProjectData {
       pages: (json['pages'] as List? ?? [])
           .map((e) => PageData.fromJson(e as Map<String, dynamic>))
           .toList(),
+      pubspec: json['pubspec'] != null
+          ? PubspecConfig.fromJson(json['pubspec'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -846,6 +855,7 @@ extension ProjectDataExt on ProjectData {
     String? colorPrimaryDark,
     String? colorAccent,
     List<PageData>? pages,
+    PubspecConfig? pubspec,
   }) {
     return ProjectData(
       appName: appName ?? this.appName,
@@ -857,6 +867,7 @@ extension ProjectDataExt on ProjectData {
       colorPrimaryDark: colorPrimaryDark ?? this.colorPrimaryDark,
       colorAccent: colorAccent ?? this.colorAccent,
       pages: pages ?? this.pages,
+      pubspec: pubspec ?? this.pubspec,
     );
   }
 }

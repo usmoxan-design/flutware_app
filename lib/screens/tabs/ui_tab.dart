@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/app_models.dart';
 import '../../providers/project_provider.dart';
+import '../../widgets/widget_tree_panel.dart';
 import '../logic_editor_screen.dart';
+
+// Clipboard provider for copy/paste
+final _clipboardWidgetProvider = StateProvider<WidgetData?>((ref) => null);
 
 class UiTab extends ConsumerStatefulWidget {
   const UiTab({super.key});
@@ -15,23 +20,22 @@ class UiTab extends ConsumerStatefulWidget {
 
 class _UiTabState extends ConsumerState<UiTab> {
   static const _templates = <_WidgetTemplate>[
-    _WidgetTemplate(type: 'appbar', title: 'AppBar', icon: Icons.web_asset),
-    _WidgetTemplate(
-      type: 'single_scroll',
-      title: 'SingleChildScrollView',
-      icon: Icons.swap_vert,
-    ),
-    _WidgetTemplate(type: 'padding', title: 'Padding', icon: Icons.space_bar),
-    _WidgetTemplate(
-      type: 'expanded',
-      title: 'Expanded',
-      icon: Icons.open_in_full,
-    ),
-    _WidgetTemplate(type: 'row', title: 'Row', icon: Icons.view_column),
-    _WidgetTemplate(type: 'column', title: 'Column', icon: Icons.view_stream),
-    _WidgetTemplate(type: 'text', title: 'Text', icon: Icons.text_fields),
-    _WidgetTemplate(type: 'button', title: 'Button', icon: Icons.smart_button),
-    _WidgetTemplate(type: 'fab', title: 'FAB', icon: Icons.add_circle_outline),
+    // Layout widgets
+    _WidgetTemplate(type: 'appbar', title: 'AppBar', icon: Icons.web_asset, category: _WidgetCategory.layout),
+    _WidgetTemplate(type: 'single_scroll', title: 'ScrollView', icon: Icons.swap_vert, category: _WidgetCategory.layout),
+    _WidgetTemplate(type: 'padding', title: 'Padding', icon: Icons.space_bar, category: _WidgetCategory.layout),
+    _WidgetTemplate(type: 'expanded', title: 'Expanded', icon: Icons.open_in_full, category: _WidgetCategory.layout),
+    _WidgetTemplate(type: 'container', title: 'Container', icon: Icons.check_box_outline_blank, category: _WidgetCategory.layout),
+    _WidgetTemplate(type: 'row', title: 'Row', icon: Icons.view_column, category: _WidgetCategory.layout),
+    _WidgetTemplate(type: 'column', title: 'Column', icon: Icons.view_stream, category: _WidgetCategory.layout),
+    // Content widgets
+    _WidgetTemplate(type: 'text', title: 'Text', icon: Icons.text_fields, category: _WidgetCategory.content),
+    _WidgetTemplate(type: 'button', title: 'Button', icon: Icons.smart_button, category: _WidgetCategory.content),
+    _WidgetTemplate(type: 'textfield', title: 'TextField', icon: Icons.input, category: _WidgetCategory.content),
+    _WidgetTemplate(type: 'image', title: 'Image', icon: Icons.image, iconColor: Colors.pink, category: _WidgetCategory.content),
+    _WidgetTemplate(type: 'icon', title: 'Icon', icon: Icons.insert_emoticon, iconColor: Colors.cyan, category: _WidgetCategory.content),
+    _WidgetTemplate(type: 'card', title: 'Card', icon: Icons.credit_card, iconColor: Colors.purple, category: _WidgetCategory.content),
+    _WidgetTemplate(type: 'fab', title: 'FAB', icon: Icons.add_circle_outline, category: _WidgetCategory.content),
   ];
   static const List<Color> _defaultColors = [
     Color(0xFF000000),
@@ -68,6 +72,7 @@ class _UiTabState extends ConsumerState<UiTab> {
     final page = ref.watch(currentPageProvider);
     final projectIndex = ref.watch(currentProjectIndexProvider);
     final pageIndex = ref.watch(currentPageIndexProvider);
+    final clipboardWidget = ref.watch(_clipboardWidgetProvider);
 
     if (project == null ||
         page == null ||
@@ -85,39 +90,95 @@ class _UiTabState extends ConsumerState<UiTab> {
         if (didPop || selected == null) return;
         setState(() => _selectedWidgetId = null);
       },
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 900;
-          final paletteWidth = isCompact ? 130.0 : 165.0;
-
-          return Stack(
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(width: paletteWidth, child: _buildPalette(page)),
-                  VerticalDivider(width: 1, color: Colors.grey.shade300),
-                  Expanded(
-                    child: _buildCanvas(
-                      project,
-                      page,
-                      selected,
-                      isCompact: isCompact,
-                    ),
-                  ),
-                ],
-              ),
-              if (selected != null)
-                _buildPropertySheet(
-                  project,
-                  projectIndex,
-                  pageIndex,
-                  page,
-                  selected,
-                ),
-            ],
-          );
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            // Ctrl+C - Copy
+            if (event.logicalKey == LogicalKeyboardKey.keyC &&
+                HardwareKeyboard.instance.isControlPressed &&
+                selectedId != null) {
+              _copyWidget(project, projectIndex, pageIndex, page, selectedId);
+              return KeyEventResult.handled;
+            }
+            // Ctrl+V - Paste
+            if (event.logicalKey == LogicalKeyboardKey.keyV &&
+                HardwareKeyboard.instance.isControlPressed &&
+                clipboardWidget != null) {
+              _pasteWidget(project, projectIndex, pageIndex, page, selectedId);
+              return KeyEventResult.handled;
+            }
+            // Delete - Remove
+            if (event.logicalKey == LogicalKeyboardKey.delete &&
+                selectedId != null) {
+              _removeWidgetById(project, projectIndex, pageIndex, page, selectedId);
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
         },
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 1100;
+            final paletteWidth = isCompact ? 130.0 : 165.0;
+            final showTreePanel = constraints.maxWidth >= 800;
+
+            return Stack(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Widget Tree Panel
+                    if (showTreePanel)
+                      WidgetTreePanel(
+                        project: project,
+                        page: page,
+                        selectedWidgetId: selectedId,
+                        onSelect: (id) => setState(() => _selectedWidgetId = id),
+                        onDelete: selectedId != null
+                            ? () => _removeWidgetById(
+                                project, projectIndex, pageIndex, page, selectedId)
+                            : () {},
+                        onCopy: selectedId != null
+                            ? () => _copyWidget(
+                                project, projectIndex, pageIndex, page, selectedId)
+                            : () {},
+                        onPaste: clipboardWidget != null
+                            ? () => _pasteWidget(
+                                project, projectIndex, pageIndex, page, selectedId)
+                            : () {},
+                        canPaste: clipboardWidget != null &&
+                            (selectedId == null ||
+                                _supportsChildren(_findWidgetById(page.widgets, selectedId)?.type ?? '')),
+                      ),
+                    if (showTreePanel)
+                      VerticalDivider(width: 1, color: Colors.grey.shade300),
+                    // Widget Palette
+                    SizedBox(width: paletteWidth, child: _buildPalette(page)),
+                    VerticalDivider(width: 1, color: Colors.grey.shade300),
+                    // Canvas
+                    Expanded(
+                      child: _buildCanvas(
+                        project,
+                        page,
+                        selected,
+                        isCompact: isCompact,
+                      ),
+                    ),
+                  ],
+                ),
+                if (selected != null)
+                  _buildPropertySheet(
+                    project,
+                    projectIndex,
+                    pageIndex,
+                    page,
+                    selected,
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -135,37 +196,59 @@ class _UiTabState extends ConsumerState<UiTab> {
       return true;
     }).toList();
 
+    final layoutTemplates = templates.where((t) => t.category == _WidgetCategory.layout).toList();
+    final contentTemplates = templates.where((t) => t.category == _WidgetCategory.content).toList();
+
     return Container(
       color: Colors.grey.shade100,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Layout section
+          _buildPaletteSection('Layout', layoutTemplates, page),
+          Divider(height: 1, color: Colors.grey.shade300, indent: 8, endIndent: 8),
+          // Content section
+          _buildPaletteSection('Content', contentTemplates, page),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaletteSection(String title, List<_WidgetTemplate> templates, PageData page) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
             child: Text(
-              'Widgets',
-              style: TextStyle(
-                fontSize: 14,
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey.shade800,
+                color: Colors.grey.shade600,
+                letterSpacing: 0.5,
               ),
             ),
           ),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(5, 4, 5, 5),
+              padding: const EdgeInsets.fromLTRB(6, 2, 6, 6),
               itemCount: templates.length,
               itemBuilder: (context, index) {
                 final template = templates[index];
                 final tile = _buildTemplateTile(template, page);
-                return LongPressDraggable<_CanvasDragPayload>(
-                  data: _CanvasDragPayload.template(template),
-                  feedback: Material(
-                    color: Colors.transparent,
-                    child: SizedBox(width: 160, child: tile),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: LongPressDraggable<_CanvasDragPayload>(
+                    data: _CanvasDragPayload.template(template),
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: SizedBox(width: 160, child: tile),
+                    ),
+                    childWhenDragging: Opacity(opacity: 0.35, child: tile),
+                    child: tile,
                   ),
-                  childWhenDragging: Opacity(opacity: 0.35, child: tile),
-                  child: tile,
                 );
               },
             ),
@@ -176,27 +259,46 @@ class _UiTabState extends ConsumerState<UiTab> {
   }
 
   Widget _buildTemplateTile(_WidgetTemplate template, PageData page) {
+    final iconColor = template.iconColor ??
+        (template.category == _WidgetCategory.layout
+            ? Colors.teal.shade600
+            : Colors.blue.shade600);
+
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () => _addWidgetFromTemplate(template, page),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Icon(template.icon, size: 17, color: Colors.blueGrey.shade700),
-            const SizedBox(width: 5),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(template.icon, size: 16, color: iconColor),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 template.title,
-                style: const TextStyle(
-                  fontSize: 10,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
                 ),
               ),
             ),
@@ -1216,6 +1318,152 @@ class _UiTabState extends ConsumerState<UiTab> {
                     ),
                   ],
                 ],
+              ),
+            );
+          },
+        );
+        break;
+      case 'textfield':
+        final hint = widget.properties['hint']?.toString() ?? 'Enter text...';
+        final enabled = widget.properties['enabled'] != false;
+        body = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: enabled ? Colors.grey.shade50 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.input, size: 18, color: Colors.grey.shade500),
+              const SizedBox(width: 8),
+              Text(
+                hint,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: enabled ? Colors.grey.shade600 : Colors.grey.shade400,
+                ),
+              ),
+            ],
+          ),
+        );
+        break;
+      case 'image':
+        final url = widget.properties['url']?.toString() ?? '';
+        body = Container(
+          width: double.infinity,
+          height: 120,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.image, size: 32, color: Colors.grey.shade400),
+              const SizedBox(height: 4),
+              Text(
+                url.isEmpty ? 'Image' : 'Image: ${url.length > 20 ? '${url.substring(0, 20)}...' : url}',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        );
+        break;
+      case 'icon':
+        final iconName = widget.properties['icon']?.toString() ?? 'star';
+        final iconColor = _parseColor(widget.properties['color']?.toString(),
+            fallback: Colors.grey.shade600);
+        final iconSize = (widget.properties['size'] as num?)?.toDouble() ?? 24.0;
+        body = Icon(
+          _parseIconData(iconName),
+          size: iconSize.clamp(16.0, 48.0),
+          color: iconColor,
+        );
+        break;
+      case 'container':
+        final bgColor = _parseColor(widget.properties['backgroundColor']?.toString(),
+            fallback: Colors.white);
+        final borderRadius = (widget.properties['borderRadius'] as num?)?.toDouble() ?? 8.0;
+        final width = (widget.properties['width'] as num?)?.toDouble();
+        final height = (widget.properties['height'] as num?)?.toDouble();
+        body = DragTarget<_CanvasDragPayload>(
+          onWillAcceptWithDetails: (_) => true,
+          onAcceptWithDetails: (details) {
+            final template = details.data.template;
+            if (template != null) {
+              _addWidgetFromTemplate(template, page, parentId: widget.id);
+              return;
+            }
+            final widgetId = details.data.widgetId;
+            if (widgetId != null) {
+              _moveWidgetToContainer(project, page, widgetId, widget.id);
+            }
+          },
+          builder: (context, candidateData, rejectedData) {
+            return Container(
+              width: width,
+              height: height,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: candidateData.isNotEmpty ? Colors.blue.shade50 : bgColor,
+                borderRadius: BorderRadius.circular(borderRadius.clamp(0.0, 32.0)),
+                border: Border.all(
+                  color: candidateData.isNotEmpty
+                      ? Colors.blue.shade300
+                      : Colors.grey.shade300,
+                ),
+              ),
+              child: children.isEmpty
+                  ? SizedBox(
+                      height: 32,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: _buildMiniDropIndicator(candidateData.isNotEmpty),
+                      ),
+                    )
+                  : _buildCanvasNode(project, children.first, page, depth: depth + 1),
+            );
+          },
+        );
+        break;
+      case 'card':
+        final elevation = (widget.properties['elevation'] as num?)?.toDouble() ?? 2.0;
+        body = DragTarget<_CanvasDragPayload>(
+          onWillAcceptWithDetails: (_) => true,
+          onAcceptWithDetails: (details) {
+            final template = details.data.template;
+            if (template != null) {
+              _addWidgetFromTemplate(template, page, parentId: widget.id);
+              return;
+            }
+            final widgetId = details.data.widgetId;
+            if (widgetId != null) {
+              _moveWidgetToContainer(project, page, widgetId, widget.id);
+            }
+          },
+          builder: (context, candidateData, rejectedData) {
+            return Card(
+              elevation: candidateData.isNotEmpty ? 4 : elevation,
+              margin: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: candidateData.isNotEmpty
+                    ? BorderSide(color: Colors.purple.shade300, width: 2)
+                    : BorderSide.none,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                child: children.isEmpty
+                    ? SizedBox(
+                        height: 48,
+                        child: Align(
+                          alignment: Alignment.center,
+                          child: _buildMiniDropIndicator(candidateData.isNotEmpty),
+                        ),
+                      )
+                    : _buildCanvasNode(project, children.first, page, depth: depth + 1),
               ),
             );
           },
@@ -2309,6 +2557,53 @@ class _UiTabState extends ConsumerState<UiTab> {
             'backgroundColor': '0xFF1976D2',
           },
         );
+      case 'textfield':
+        return WidgetData(
+          id: id,
+          type: 'textfield',
+          properties: {
+            'hint': 'Enter text...',
+            'enabled': true,
+          },
+        );
+      case 'image':
+        return WidgetData(
+          id: id,
+          type: 'image',
+          properties: {
+            'url': '',
+            'fit': 'cover',
+          },
+        );
+      case 'icon':
+        return WidgetData(
+          id: id,
+          type: 'icon',
+          properties: {
+            'icon': 'star',
+            'color': '0xFF757575',
+            'size': 24.0,
+          },
+        );
+      case 'container':
+        return WidgetData(
+          id: id,
+          type: 'container',
+          properties: {
+            'backgroundColor': '0xFFFFFFFF',
+            'borderRadius': 8.0,
+            'children': <Map<String, dynamic>>[],
+          },
+        );
+      case 'card':
+        return WidgetData(
+          id: id,
+          type: 'card',
+          properties: {
+            'elevation': 2.0,
+            'children': <Map<String, dynamic>>[],
+          },
+        );
       case 'row':
         return WidgetData(
           id: id,
@@ -2730,6 +3025,33 @@ class _UiTabState extends ConsumerState<UiTab> {
     return raw == 'horizontal' ? Axis.horizontal : Axis.vertical;
   }
 
+  IconData _parseIconData(String? name) {
+    return switch (name) {
+      'home' => Icons.home,
+      'settings' => Icons.settings,
+      'person' => Icons.person,
+      'search' => Icons.search,
+      'add' => Icons.add,
+      'delete' => Icons.delete,
+      'edit' => Icons.edit,
+      'close' => Icons.close,
+      'check' => Icons.check,
+      'arrow_back' => Icons.arrow_back,
+      'arrow_forward' => Icons.arrow_forward,
+      'menu' => Icons.menu,
+      'more_vert' => Icons.more_vert,
+      'favorite' => Icons.favorite,
+      'star' => Icons.star,
+      'share' => Icons.share,
+      'notifications' => Icons.notifications,
+      'info' => Icons.info,
+      'warning' => Icons.warning,
+      'error' => Icons.error,
+      'help' => Icons.help,
+      _ => Icons.star,
+    };
+  }
+
   String _nextId(PageData page, String type) {
     final prefix = switch (type) {
       'appbar' => 'appbar',
@@ -2741,6 +3063,11 @@ class _UiTabState extends ConsumerState<UiTab> {
       'button' => 'button',
       'row' => 'row',
       'column' => 'column',
+      'textfield' => 'textfield',
+      'image' => 'image',
+      'icon' => 'icon',
+      'container' => 'container',
+      'card' => 'card',
       _ => 'widget',
     };
     final all = _flattenWidgets(page.widgets).map((item) => item.id).toSet();
@@ -2779,6 +3106,162 @@ class _UiTabState extends ConsumerState<UiTab> {
               (fabWidget == null || item.id != fabWidget.id),
         )
         .toList();
+  }
+
+  // Copy/Paste functionality
+  void _copyWidget(
+    ProjectData project,
+    int projectIndex,
+    int pageIndex,
+    PageData page,
+    String widgetId,
+  ) {
+    final widgetToCopy = _findWidgetById(page.widgets, widgetId);
+    if (widgetToCopy == null) return;
+
+    // Create a deep copy with new IDs
+    final copiedWidget = _deepCopyWidget(widgetToCopy, page);
+
+    ref.read(_clipboardWidgetProvider.notifier).state = copiedWidget;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied ${widgetToCopy.type}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _pasteWidget(
+    ProjectData project,
+    int projectIndex,
+    int pageIndex,
+    PageData page,
+    String? targetParentId,
+  ) {
+    final clipboardWidget = ref.read(_clipboardWidgetProvider);
+    if (clipboardWidget == null) return;
+
+    // Generate new IDs for the pasted widget
+    final pastedWidget = _regenerateIds(clipboardWidget, page);
+
+    // Add to target
+    if (targetParentId == null) {
+      // Add to root
+      _addWidgetToRoot(project, page, pastedWidget, projectIndex, pageIndex);
+    } else {
+      // Add as child
+      _addWidgetAsChild(project, page, pastedWidget, targetParentId, projectIndex, pageIndex);
+    }
+
+    // Select the pasted widget
+    setState(() => _selectedWidgetId = pastedWidget.id);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Pasted ${pastedWidget.type}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  WidgetData _deepCopyWidget(WidgetData widget, PageData page) {
+    final children = _childrenOf(widget);
+    final newChildren = children.map((child) => _deepCopyWidget(child, page)).toList();
+
+    final newProperties = Map<String, dynamic>.from(widget.properties);
+    if (newChildren.isNotEmpty) {
+      newProperties['children'] = newChildren.map((c) => c.id).toList();
+    }
+
+    return WidgetData(
+      id: widget.id,
+      type: widget.type,
+      properties: newProperties,
+    );
+  }
+
+  WidgetData _regenerateIds(WidgetData widget, PageData page) {
+    final children = _childrenOf(widget);
+    final newChildren = children.map((child) => _regenerateIds(child, page)).toList();
+
+    final newId = _nextId(page, widget.type);
+    final newProperties = Map<String, dynamic>.from(widget.properties);
+    if (newChildren.isNotEmpty) {
+      newProperties['children'] = newChildren.map((c) => c.id).toList();
+    }
+
+    return WidgetData(
+      id: newId,
+      type: widget.type,
+      properties: newProperties,
+    );
+  }
+
+  void _addWidgetToRoot(
+    ProjectData project,
+    PageData page,
+    WidgetData widget,
+    int projectIndex,
+    int pageIndex,
+  ) {
+    final allWidgets = page.widgets;
+    final appBarWidget = allWidgets
+        .where((item) => item.type == 'appbar')
+        .cast<WidgetData?>()
+        .firstOrNull;
+    final fabWidget = allWidgets
+        .where((item) => item.type == 'fab')
+        .cast<WidgetData?>()
+        .firstOrNull;
+
+    // Add children first, then parent
+    final children = _flattenWidgets([widget]);
+
+    final rebuilt = <WidgetData>[
+      if (appBarWidget != null) appBarWidget,
+      ...children.where((w) => w.id != widget.id),
+      widget,
+      if (fabWidget != null) fabWidget,
+    ];
+
+    _updatePage(ref, project, projectIndex, pageIndex, page.copyWith(widgets: rebuilt));
+  }
+
+  void _addWidgetAsChild(
+    ProjectData project,
+    PageData page,
+    WidgetData widget,
+    String parentId,
+    int projectIndex,
+    int pageIndex,
+  ) {
+    // Add all widgets (parent and children)
+    final allNewWidgets = _flattenWidgets([widget]);
+
+    // Insert parent into parent's children list
+    var updatedPageWidgets = [...page.widgets];
+
+    // Find parent and update its children
+    for (var i = 0; i < updatedPageWidgets.length; i++) {
+      if (updatedPageWidgets[i].id == parentId) {
+        final parent = updatedPageWidgets[i];
+        final currentChildren = _childrenOf(parent).map((c) => c.id).toList();
+        updatedPageWidgets[i] = WidgetData(
+          id: parent.id,
+          type: parent.type,
+          properties: {
+            ...parent.properties,
+            'children': [...currentChildren, widget.id],
+          },
+        );
+      }
+    }
+
+    // Add new widgets
+    updatedPageWidgets = [...updatedPageWidgets, ...allNewWidgets];
+
+    _updatePage(ref, project, projectIndex, pageIndex, page.copyWith(widgets: updatedPageWidgets));
   }
 
   void _updatePage(
@@ -2831,15 +3314,21 @@ class _UiTabState extends ConsumerState<UiTab> {
 
 enum _PropertySheetTab { basic, event }
 
+enum _WidgetCategory { layout, content }
+
 class _WidgetTemplate {
   final String type;
   final String title;
   final IconData icon;
+  final _WidgetCategory category;
+  final Color? iconColor;
 
   const _WidgetTemplate({
     required this.type,
     required this.title,
     required this.icon,
+    this.category = _WidgetCategory.content,
+    this.iconColor,
   });
 }
 

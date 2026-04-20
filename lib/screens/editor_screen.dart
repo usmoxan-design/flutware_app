@@ -5,6 +5,7 @@ import '../providers/project_provider.dart';
 import 'tabs/ui_tab.dart';
 import 'tabs/logic_tab.dart';
 import 'tabs/preview_tab.dart';
+import 'pubspec_manager_screen.dart';
 
 class EditorScreen extends ConsumerWidget {
   const EditorScreen({super.key});
@@ -140,6 +141,22 @@ class EditorScreen extends ConsumerWidget {
                 onPressed: () {
                   _showProjectSettings(context, ref, project, projectIndex);
                 },
+              ),
+              IconButton(
+                icon: const Icon(Icons.usb_outlined),
+                tooltip: 'Pubspec Manager',
+                onPressed: projectIndex == null
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PubspecManagerScreen(
+                              projectIndex: projectIndex,
+                            ),
+                          ),
+                        );
+                      },
               ),
             ],
           ),
